@@ -129,16 +129,16 @@ f_table_row(_table, _row, _label, _enabled, _long_sig, _short_sig, _delta) =>
     table.cell(_table, 1, _row, state_text, text_color=state_color)
     table.cell(_table, 2, _row, str.tostring(_delta, format.mintick), text_color=txt_color)
 
-f_process_tf(_cfg, _demand_boxes, _supply_boxes) =>
+f_process_tf(_cfg, _tf, _demand_boxes, _supply_boxes) =>
     bool long_sig = false
     bool short_sig = false
     float upper_sum = 0.0
     float lower_sum = 0.0
     if _cfg.enabled
-        o_tf = request.security(syminfo.tickerid, _cfg.timeframe, open,  barmerge.gaps_off, barmerge.lookahead_off)
-        c_tf = request.security(syminfo.tickerid, _cfg.timeframe, close, barmerge.gaps_off, barmerge.lookahead_off)
-        h_tf = request.security(syminfo.tickerid, _cfg.timeframe, high,  barmerge.gaps_off, barmerge.lookahead_off)
-        l_tf = request.security(syminfo.tickerid, _cfg.timeframe, low,   barmerge.gaps_off, barmerge.lookahead_off)
+        o_tf = request.security(syminfo.tickerid, _tf, open,  barmerge.gaps_off, barmerge.lookahead_off)
+        c_tf = request.security(syminfo.tickerid, _tf, close, barmerge.gaps_off, barmerge.lookahead_off)
+        h_tf = request.security(syminfo.tickerid, _tf, high,  barmerge.gaps_off, barmerge.lookahead_off)
+        l_tf = request.security(syminfo.tickerid, _tf, low,   barmerge.gaps_off, barmerge.lookahead_off)
         [upper_sum, lower_sum] = f_shadow_sum(o_tf, c_tf, h_tf, l_tf, _cfg.wick_short, _cfg.wick_mid, _cfg.wick_long, _cfg.body_avg_len, _cfg.min_body_ratio, _cfg.max_body_ratio)
 
         f_cleanup_zones(_demand_boxes, _cfg.max_zone_age)
@@ -185,10 +185,10 @@ var box[] supply_tf3 = array.new_box()
 var box[] demand_tf4 = array.new_box()
 var box[] supply_tf4 = array.new_box()
 
-[long1, short1, up1, low1] = f_process_tf(tf_cfg_1, demand_tf1, supply_tf1)
-[long2, short2, up2, low2] = f_process_tf(tf_cfg_2, demand_tf2, supply_tf2)
-[long3, short3, up3, low3] = f_process_tf(tf_cfg_3, demand_tf3, supply_tf3)
-[long4, short4, up4, low4] = f_process_tf(tf_cfg_4, demand_tf4, supply_tf4)
+[long1, short1, up1, low1] = f_process_tf(tf_cfg_1, tf1_tf, demand_tf1, supply_tf1)
+[long2, short2, up2, low2] = f_process_tf(tf_cfg_2, tf2_tf, demand_tf2, supply_tf2)
+[long3, short3, up3, low3] = f_process_tf(tf_cfg_3, tf3_tf, demand_tf3, supply_tf3)
+[long4, short4, up4, low4] = f_process_tf(tf_cfg_4, tf4_tf, demand_tf4, supply_tf4)
 
 plotshape(long1,  title="لانگ TF1",  location=location.belowbar, color=tf_cfg_1.long_color,  style=shape.triangleup,   size=size.tiny,  text="TF1", textcolor=color.white)
 plotshape(short1, title="شورت TF1", location=location.abovebar, color=tf_cfg_1.short_color, style=shape.triangledown, size=size.tiny,  text="TF1", textcolor=color.white)
