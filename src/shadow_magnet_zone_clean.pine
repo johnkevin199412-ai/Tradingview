@@ -1,5 +1,5 @@
 //@version=5
-indicator("Shadow Magnet Zone - Clean", shorttitle="SMZ Clean", overlay=true, max_boxes_count=400, max_labels_count=200)
+indicator("Shadow Magnet Zone - Clean", shorttitle="SMZ Clean", overlay=true, max_boxes_count=400, max_labels_count=200, dynamic_requests=true)
 
 // ————————————————————————————— Helper functions —————————————————————————————
 f_shadow_pressure(_o, _c, _h, _l, _lb1, _lb2, _lb3, _avg_len, _min_ratio, _max_ratio) =>
@@ -60,15 +60,19 @@ f_table_row(_tbl, _row, _label, _enabled, _long_sig, _short_sig, _delta) =>
 f_process_tf(_label, _tf, _enabled, _wick1, _wick2, _wick3, _avg_body, _min_ratio, _max_ratio, _zone_lb, _zone_strength, _zone_age, _demand_boxes, _supply_boxes) =>
     bool long_sig = false
     bool short_sig = false
-    float upper = 0.0
-    float lower = 0.0
+    float upper_val = 0.0
+    float lower_val = 0.0
     if _enabled
         o_tf = request.security(syminfo.tickerid, _tf, open,  barmerge.gaps_off, barmerge.lookahead_off)
         c_tf = request.security(syminfo.tickerid, _tf, close, barmerge.gaps_off, barmerge.lookahead_off)
         h_tf = request.security(syminfo.tickerid, _tf, high,  barmerge.gaps_off, barmerge.lookahead_off)
         l_tf = request.security(syminfo.tickerid, _tf, low,   barmerge.gaps_off, barmerge.lookahead_off)
 
-        [upper, lower] = f_shadow_pressure(o_tf, c_tf, h_tf, l_tf, _wick1, _wick2, _wick3, _avg_body, _min_ratio, _max_ratio)
+        float upper_tmp = 0.0
+        float lower_tmp = 0.0
+        [upper_tmp, lower_tmp] = f_shadow_pressure(o_tf, c_tf, h_tf, l_tf, _wick1, _wick2, _wick3, _avg_body, _min_ratio, _max_ratio)
+        upper_val := upper_tmp
+        lower_val := lower_tmp
 
         f_trim_boxes(_demand_boxes, _zone_age)
         f_trim_boxes(_supply_boxes, _zone_age)
@@ -95,10 +99,10 @@ f_process_tf(_label, _tf, _enabled, _wick1, _wick2, _wick3, _avg_body, _min_rati
 
         in_demand = f_price_in_boxes(_demand_boxes)
         in_supply = f_price_in_boxes(_supply_boxes)
-        long_sig := lower > upper and in_demand
-        short_sig := upper > lower and in_supply
+        long_sig := lower_val > upper_val and in_demand
+        short_sig := upper_val > lower_val and in_supply
 
-    [long_sig, short_sig, upper, lower]
+    [long_sig, short_sig, upper_val, lower_val]
 
 // ————————————————————————————— Inputs —————————————————————————————
 tf1_group = "تنظیمات TF1"
