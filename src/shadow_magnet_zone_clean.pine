@@ -100,23 +100,19 @@ f_shadow_sum(_o, _c, _h, _l, _lb1, _lb2, _lb3, _avg_body_len, _min_body_ratio, _
 f_cleanup_zones(_boxes, _max_age) =>
     for idx = array.size(_boxes) - 1 to 0
         b = array.get(_boxes, idx)
-        if not box.is_valid(b)
+        age = bar_index - int(box.get_left(b))
+        if age > _max_age
+            box.delete(b)
             array.remove(_boxes, idx)
-        else
-            age = bar_index - int(box.get_left(b))
-            if age > _max_age
-                box.delete(b)
-                array.remove(_boxes, idx)
 
 f_in_zone(_boxes) =>
     bool inside = false
     for b in _boxes
-        if box.is_valid(b)
-            top_val = box.get_top(b)
-            bot_val = box.get_bottom(b)
-            if low <= top_val and high >= bot_val
-                inside := true
-                break
+        top_val = box.get_top(b)
+        bot_val = box.get_bottom(b)
+        if low <= top_val and high >= bot_val
+            inside := true
+            break
     inside
 
 f_register_zone(_boxes, _top, _bottom, _age, _label, _is_demand) =>
