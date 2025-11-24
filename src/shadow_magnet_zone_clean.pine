@@ -130,9 +130,11 @@ f_table_row(_table, _row, _label, _enabled, _long_sig, _short_sig, _delta) =>
     table.cell(_table, 2, _row, str.tostring(_delta, format.mintick), text_color=txt_color)
 
 f_process_tf(_cfg, _demand_boxes, _supply_boxes) =>
-    if not _cfg.enabled
-        [false, false, 0.0, 0.0]
-    else
+    bool long_sig = false
+    bool short_sig = false
+    float upper_sum = 0.0
+    float lower_sum = 0.0
+    if _cfg.enabled
         o_tf = request.security(syminfo.tickerid, _cfg.timeframe, open,  barmerge.gaps_off, barmerge.lookahead_off)
         c_tf = request.security(syminfo.tickerid, _cfg.timeframe, close, barmerge.gaps_off, barmerge.lookahead_off)
         h_tf = request.security(syminfo.tickerid, _cfg.timeframe, high,  barmerge.gaps_off, barmerge.lookahead_off)
@@ -168,8 +170,10 @@ f_process_tf(_cfg, _demand_boxes, _supply_boxes) =>
 
         bullish = lower_sum > upper_sum
         bearish = upper_sum > lower_sum
+        long_sig := bullish and in_demand
+        short_sig := bearish and in_supply
 
-        [bullish and in_demand, bearish and in_supply, upper_sum, lower_sum]
+    [long_sig, short_sig, upper_sum, lower_sum]
 
 // ——— Storage for boxes per TF ———
 var box[] demand_tf1 = array.new_box()
