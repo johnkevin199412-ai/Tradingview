@@ -68,11 +68,7 @@ f_process_tf(_label, _tf, _enabled, _wick1, _wick2, _wick3, _avg_body, _min_rati
         h_tf = request.security(syminfo.tickerid, _tf, high,  barmerge.gaps_off, barmerge.lookahead_off)
         l_tf = request.security(syminfo.tickerid, _tf, low,   barmerge.gaps_off, barmerge.lookahead_off)
 
-        float upper_tmp = 0.0
-        float lower_tmp = 0.0
-        [upper_tmp, lower_tmp] = f_shadow_pressure(o_tf, c_tf, h_tf, l_tf, _wick1, _wick2, _wick3, _avg_body, _min_ratio, _max_ratio)
-        upper_val := upper_tmp
-        lower_val := lower_tmp
+        [upper_val, lower_val] := f_shadow_pressure(o_tf, c_tf, h_tf, l_tf, _wick1, _wick2, _wick3, _avg_body, _min_ratio, _max_ratio)
 
         f_trim_boxes(_demand_boxes, _zone_age)
         f_trim_boxes(_supply_boxes, _zone_age)
