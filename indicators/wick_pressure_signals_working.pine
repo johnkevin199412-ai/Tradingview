@@ -48,7 +48,7 @@ c = request.security(syminfo.tickerid, tfCalc, close)
 v = request.security(syminfo.tickerid, tfCalc, volume)
 
 // Session condition on HTF candles
-tfSessionOk = request.security(syminfo.tickerid, tfCalc, session.issession(sessionWindow, time))
+tfSessionOk = request.security(syminfo.tickerid, tfCalc, session.issession(sessionWindow))
 sessionCond = not useSessionFilter or (tfSessionOk == 1)
 
 // Body filter based on average body length
