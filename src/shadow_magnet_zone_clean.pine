@@ -1,0 +1,220 @@
+//@version=5
+indicator("Shadow Magnet Zone - Clean", shorttitle="SMZ Clean", overlay=true, max_boxes_count=400, max_labels_count=200)
+
+// ——— Helper types ———
+type TfSettings
+    bool enabled
+    string label
+    string timeframe
+    int wick_short
+    int wick_mid
+    int wick_long
+    int body_avg_len
+    float min_body_ratio
+    float max_body_ratio
+    int zone_lookback
+    float min_zone_strength
+    int max_zone_age
+    color long_color
+    color short_color
+
+// ——— Inputs per timeframe (4 blocks to stay under resource limits) ———
+tf1_group = "تنظیمات TF1"
+enable_tf1 = input.bool(true, "فعال‌سازی TF1", group=tf1_group)
+tf1_tf = input.timeframe("5", "تایم‌فریم TF1", group=tf1_group)
+tf1_wick1 = input.int(8, "دوره سایه ۱ (TF1)", minval=1, group=tf1_group)
+tf1_wick2 = input.int(21, "دوره سایه ۲ (TF1)", minval=1, group=tf1_group)
+tf1_wick3 = input.int(34, "دوره سایه ۳ (TF1)", minval=1, group=tf1_group)
+tf1_body = input.int(14, "میانگین بدنه (TF1)", minval=1, group=tf1_group)
+tf1_body_min = input.float(0.8, "حداقل نسبت بدنه (TF1)", step=0.1, minval=0, group=tf1_group)
+tf1_body_max = input.float(3.5, "حداکثر نسبت بدنه (TF1)", step=0.1, minval=0.1, group=tf1_group)
+tf1_zone_lb = input.int(30, "کندل پایه ناحیه (TF1)", minval=5, group=tf1_group)
+tf1_zone_min_strength = input.float(1.3, "حداقل قدرت ناحیه (TF1)", minval=1, step=0.1, group=tf1_group)
+tf1_zone_age = input.int(25, "حداکثر عمر ناحیه (TF1)", minval=5, group=tf1_group)
+
+tf2_group = "تنظیمات TF2"
+enable_tf2 = input.bool(true, "فعال‌سازی TF2", group=tf2_group)
+tf2_tf = input.timeframe("15", "تایم‌فریم TF2", group=tf2_group)
+tf2_wick1 = input.int(13, "دوره سایه ۱ (TF2)", minval=1, group=tf2_group)
+tf2_wick2 = input.int(34, "دوره سایه ۲ (TF2)", minval=1, group=tf2_group)
+tf2_wick3 = input.int(55, "دوره سایه ۳ (TF2)", minval=1, group=tf2_group)
+tf2_body = input.int(20, "میانگین بدنه (TF2)", minval=1, group=tf2_group)
+tf2_body_min = input.float(1.0, "حداقل نسبت بدنه (TF2)", step=0.1, minval=0, group=tf2_group)
+tf2_body_max = input.float(4.0, "حداکثر نسبت بدنه (TF2)", step=0.1, minval=0.1, group=tf2_group)
+tf2_zone_lb = input.int(40, "کندل پایه ناحیه (TF2)", minval=5, group=tf2_group)
+tf2_zone_min_strength = input.float(1.6, "حداقل قدرت ناحیه (TF2)", minval=1, step=0.1, group=tf2_group)
+tf2_zone_age = input.int(40, "حداکثر عمر ناحیه (TF2)", minval=5, group=tf2_group)
+
+tf3_group = "تنظیمات TF3"
+enable_tf3 = input.bool(false, "فعال‌سازی TF3", group=tf3_group)
+tf3_tf = input.timeframe("60", "تایم‌فریم TF3", group=tf3_group)
+tf3_wick1 = input.int(21, "دوره سایه ۱ (TF3)", minval=1, group=tf3_group)
+tf3_wick2 = input.int(55, "دوره سایه ۲ (TF3)", minval=1, group=tf3_group)
+tf3_wick3 = input.int(89, "دوره سایه ۳ (TF3)", minval=1, group=tf3_group)
+tf3_body = input.int(34, "میانگین بدنه (TF3)", minval=1, group=tf3_group)
+tf3_body_min = input.float(1.2, "حداقل نسبت بدنه (TF3)", step=0.1, minval=0, group=tf3_group)
+tf3_body_max = input.float(4.5, "حداکثر نسبت بدنه (TF3)", step=0.1, minval=0.1, group=tf3_group)
+tf3_zone_lb = input.int(60, "کندل پایه ناحیه (TF3)", minval=5, group=tf3_group)
+tf3_zone_min_strength = input.float(1.8, "حداقل قدرت ناحیه (TF3)", minval=1, step=0.1, group=tf3_group)
+tf3_zone_age = input.int(60, "حداکثر عمر ناحیه (TF3)", minval=5, group=tf3_group)
+
+tf4_group = "تنظیمات TF4"
+enable_tf4 = input.bool(false, "فعال‌سازی TF4", group=tf4_group)
+tf4_tf = input.timeframe("240", "تایم‌فریم TF4", group=tf4_group)
+tf4_wick1 = input.int(34, "دوره سایه ۱ (TF4)", minval=1, group=tf4_group)
+tf4_wick2 = input.int(89, "دوره سایه ۲ (TF4)", minval=1, group=tf4_group)
+tf4_wick3 = input.int(144, "دوره سایه ۳ (TF4)", minval=1, group=tf4_group)
+tf4_body = input.int(55, "میانگین بدنه (TF4)", minval=1, group=tf4_group)
+tf4_body_min = input.float(1.4, "حداقل نسبت بدنه (TF4)", step=0.1, minval=0, group=tf4_group)
+tf4_body_max = input.float(5.0, "حداکثر نسبت بدنه (TF4)", step=0.1, minval=0.1, group=tf4_group)
+tf4_zone_lb = input.int(80, "کندل پایه ناحیه (TF4)", minval=5, group=tf4_group)
+tf4_zone_min_strength = input.float(2.0, "حداقل قدرت ناحیه (TF4)", minval=1, step=0.1, group=tf4_group)
+tf4_zone_age = input.int(90, "حداکثر عمر ناحیه (TF4)", minval=5, group=tf4_group)
+
+tf_cfg_1 = TfSettings.new(enable_tf1, "TF1", tf1_tf, tf1_wick1, tf1_wick2, tf1_wick3, tf1_body, tf1_body_min, tf1_body_max, tf1_zone_lb, tf1_zone_min_strength, tf1_zone_age, color.green, color.red)
+tf_cfg_2 = TfSettings.new(enable_tf2, "TF2", tf2_tf, tf2_wick1, tf2_wick2, tf2_wick3, tf2_body, tf2_body_min, tf2_body_max, tf2_zone_lb, tf2_zone_min_strength, tf2_zone_age, color.lime, color.maroon)
+tf_cfg_3 = TfSettings.new(enable_tf3, "TF3", tf3_tf, tf3_wick1, tf3_wick2, tf3_wick3, tf3_body, tf3_body_min, tf3_body_max, tf3_zone_lb, tf3_zone_min_strength, tf3_zone_age, color.teal, color.orange)
+tf_cfg_4 = TfSettings.new(enable_tf4, "TF4", tf4_tf, tf4_wick1, tf4_wick2, tf4_wick3, tf4_body, tf4_body_min, tf4_body_max, tf4_zone_lb, tf4_zone_min_strength, tf4_zone_age, color.blue, color.yellow)
+
+// ——— Shared helpers ———
+f_shadow_sum(_o, _c, _h, _l, _lb1, _lb2, _lb3, _avg_body_len, _min_body_ratio, _max_body_ratio) =>
+    float upper_sum = 0.0
+    float lower_sum = 0.0
+    max_len = math.max(_lb1, math.max(_lb2, _lb3))
+    avg_body_series = ta.sma(math.abs(_c - _o), _avg_body_len)
+    if bar_index <= max_len + _avg_body_len
+        [upper_sum, lower_sum]
+    else
+        for i = 1 to max_len
+            body = math.abs(_c[i] - _o[i])
+            avg_body = avg_body_series[i]
+            if not na(avg_body) and body > 0
+                valid = body >= _min_body_ratio * avg_body and body <= _max_body_ratio * avg_body
+                if valid
+                    up_shadow = _h[i] - math.max(_o[i], _c[i])
+                    low_shadow = math.min(_o[i], _c[i]) - _l[i]
+                    upper_sum += up_shadow
+                    lower_sum += low_shadow
+        [upper_sum, lower_sum]
+
+f_cleanup_zones(_boxes, _max_age) =>
+    for idx = array.size(_boxes) - 1 to 0
+        b = array.get(_boxes, idx)
+        if not box.is_valid(b)
+            array.remove(_boxes, idx)
+        else
+            age = bar_index - int(box.get_left(b))
+            if age > _max_age
+                box.delete(b)
+                array.remove(_boxes, idx)
+
+f_in_zone(_boxes) =>
+    bool inside = false
+    for b in _boxes
+        if box.is_valid(b)
+            top_val = box.get_top(b)
+            bot_val = box.get_bottom(b)
+            if low <= top_val and high >= bot_val
+                inside := true
+                break
+    inside
+
+f_register_zone(_boxes, _top, _bottom, _age, _label, _is_demand) =>
+    new_color = _is_demand ? color.new(color.green, 85) : color.new(color.red, 85)
+    border = _is_demand ? color.green : color.red
+    new_box = box.new(left=bar_index, right=bar_index + _age, top=_top, bottom=_bottom, border_color=border, bgcolor=new_color, text=_label, text_color=color.white)
+    array.push(_boxes, new_box)
+
+f_table_row(_table, _row, _label, _enabled, _long_sig, _short_sig, _delta) =>
+    txt_color = _enabled ? color.white : color.new(color.white, 60)
+    state_text = _long_sig ? "لانگ" : _short_sig ? "شورت" : "خنثی"
+    state_color = _long_sig ? color.new(color.green, 0) : _short_sig ? color.new(color.red, 0) : color.new(color.gray, 40)
+    table.cell(_table, 0, _row, _label, text_color=txt_color)
+    table.cell(_table, 1, _row, state_text, text_color=state_color)
+    table.cell(_table, 2, _row, str.tostring(_delta, format.mintick), text_color=txt_color)
+
+f_process_tf(_cfg, _demand_boxes, _supply_boxes) =>
+    if not _cfg.enabled
+        [false, false, 0.0, 0.0]
+    else
+        [o_tf, c_tf, h_tf, l_tf] = request.security(syminfo.tickerid, _cfg.timeframe, [open, close, high, low], barmerge.gaps_off, barmerge.lookahead_off)
+        [upper_sum, lower_sum] = f_shadow_sum(o_tf, c_tf, h_tf, l_tf, _cfg.wick_short, _cfg.wick_mid, _cfg.wick_long, _cfg.body_avg_len, _cfg.min_body_ratio, _cfg.max_body_ratio)
+
+        f_cleanup_zones(_demand_boxes, _cfg.max_zone_age)
+        f_cleanup_zones(_supply_boxes, _cfg.max_zone_age)
+
+        can_search_zone = bar_index > _cfg.zone_lookback + 1 and not na(o_tf[_cfg.zone_lookback]) and not na(l_tf[1])
+        if can_search_zone
+            base_o = o_tf[_cfg.zone_lookback]
+            base_c = c_tf[_cfg.zone_lookback]
+            base_h = h_tf[_cfg.zone_lookback]
+            base_l = l_tf[_cfg.zone_lookback]
+            base_body = math.abs(base_c - base_o)
+
+            trigger_h = h_tf[1]
+            trigger_l = l_tf[1]
+
+            if base_body > 0
+                if base_l > trigger_l and (base_h - trigger_l) >= _cfg.min_zone_strength * base_body
+                    top_zone = base_l
+                    bot_zone = trigger_l
+                    f_register_zone(_demand_boxes, top_zone, bot_zone, _cfg.max_zone_age, "D " + _cfg.label, true)
+                if base_h < trigger_h and (trigger_h - base_l) >= _cfg.min_zone_strength * base_body
+                    top_zone = trigger_h
+                    bot_zone = base_h
+                    f_register_zone(_supply_boxes, top_zone, bot_zone, _cfg.max_zone_age, "S " + _cfg.label, false)
+
+        in_demand = f_in_zone(_demand_boxes)
+        in_supply = f_in_zone(_supply_boxes)
+
+        bullish = lower_sum > upper_sum
+        bearish = upper_sum > lower_sum
+
+        [bullish and in_demand, bearish and in_supply, upper_sum, lower_sum]
+
+// ——— Storage for boxes per TF ———
+var box[] demand_tf1 = array.new_box()
+var box[] supply_tf1 = array.new_box()
+var box[] demand_tf2 = array.new_box()
+var box[] supply_tf2 = array.new_box()
+var box[] demand_tf3 = array.new_box()
+var box[] supply_tf3 = array.new_box()
+var box[] demand_tf4 = array.new_box()
+var box[] supply_tf4 = array.new_box()
+
+[long1, short1, up1, low1] = f_process_tf(tf_cfg_1, demand_tf1, supply_tf1)
+[long2, short2, up2, low2] = f_process_tf(tf_cfg_2, demand_tf2, supply_tf2)
+[long3, short3, up3, low3] = f_process_tf(tf_cfg_3, demand_tf3, supply_tf3)
+[long4, short4, up4, low4] = f_process_tf(tf_cfg_4, demand_tf4, supply_tf4)
+
+plotshape(long1,  title="لانگ TF1",  location=location.belowbar, color=tf_cfg_1.long_color,  style=shape.triangleup,   size=size.tiny,  text="TF1", textcolor=color.white)
+plotshape(short1, title="شورت TF1", location=location.abovebar, color=tf_cfg_1.short_color, style=shape.triangledown, size=size.tiny,  text="TF1", textcolor=color.white)
+
+plotshape(long2,  title="لانگ TF2",  location=location.belowbar, color=tf_cfg_2.long_color,  style=shape.triangleup,   size=size.small, text="TF2", textcolor=color.white)
+plotshape(short2, title="شورت TF2", location=location.abovebar, color=tf_cfg_2.short_color, style=shape.triangledown, size=size.small, text="TF2", textcolor=color.white)
+
+plotshape(long3,  title="لانگ TF3",  location=location.belowbar, color=tf_cfg_3.long_color,  style=shape.triangleup,   size=size.normal, text="TF3", textcolor=color.white)
+plotshape(short3, title="شورت TF3", location=location.abovebar, color=tf_cfg_3.short_color, style=shape.triangledown, size=size.normal, text="TF3", textcolor=color.white)
+
+plotshape(long4,  title="لانگ TF4",  location=location.belowbar, color=tf_cfg_4.long_color,  style=shape.triangleup,   size=size.large, text="TF4", textcolor=color.white)
+plotshape(short4, title="شورت TF4", location=location.abovebar, color=tf_cfg_4.short_color, style=shape.triangledown, size=size.large, text="TF4", textcolor=color.white)
+
+alertcondition(long1,  "لانگ TF1",  "TF1: فشار سایه پایین + ناحیه تقاضا")
+alertcondition(short1, "شورت TF1", "TF1: فشار سایه بالا + ناحیه عرضه")
+alertcondition(long2,  "لانگ TF2",  "TF2: فشار سایه پایین + ناحیه تقاضا")
+alertcondition(short2, "شورت TF2", "TF2: فشار سایه بالا + ناحیه عرضه")
+alertcondition(long3,  "لانگ TF3",  "TF3: فشار سایه پایین + ناحیه تقاضا")
+alertcondition(short3, "شورت TF3", "TF3: فشار سایه بالا + ناحیه عرضه")
+alertcondition(long4,  "لانگ TF4",  "TF4: فشار سایه پایین + ناحیه تقاضا")
+alertcondition(short4, "شورت TF4", "TF4: فشار سایه بالا + ناحیه عرضه")
+
+var table info_tbl = table.new(position.top_right, 3, 6, border_color=color.new(color.gray, 70), bgcolor=color.new(color.black, 80))
+if barstate.islast
+    table.cell(info_tbl, 0, 0, "TF", bgcolor=color.new(color.gray, 40), text_color=color.white)
+    table.cell(info_tbl, 1, 0, "سیگنال", bgcolor=color.new(color.gray, 40), text_color=color.white)
+    table.cell(info_tbl, 2, 0, "Δ سایه", bgcolor=color.new(color.gray, 40), text_color=color.white)
+
+    f_table_row(info_tbl, 1, tf_cfg_1.label, tf_cfg_1.enabled, long1, short1, low1 - up1)
+    f_table_row(info_tbl, 2, tf_cfg_2.label, tf_cfg_2.enabled, long2, short2, low2 - up2)
+    f_table_row(info_tbl, 3, tf_cfg_3.label, tf_cfg_3.enabled, long3, short3, low3 - up3)
+    f_table_row(info_tbl, 4, tf_cfg_4.label, tf_cfg_4.enabled, long4, short4, low4 - up4)
