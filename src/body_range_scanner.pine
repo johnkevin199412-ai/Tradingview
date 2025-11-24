@@ -19,7 +19,7 @@ lower_wick = math.min(open_tf, close_tf) - low_tf
 avg_body = ta.sma(body_size, avg_window)
 qualifies = not na(avg_body) and avg_body >= min_avg_body and avg_body <= max_avg_body
 
-qualified_count = ta.sum(qualifies ? 1 : 0, lookback)
+qualified_count = lookback * ta.sma(qualifies ? 1.0 : 0.0, lookback)
 
 plot(body_size, title="Body size", color=color.rgb(0, 149, 255))
 plot(upper_wick, title="Upper shadow", color=color.rgb(44, 186, 0))
