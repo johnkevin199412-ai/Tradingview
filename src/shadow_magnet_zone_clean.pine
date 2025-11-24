@@ -26,15 +26,14 @@ f_shadow_pressure(_o, _c, _h, _l, _lb1, _lb2, _lb3, _avg_len, _min_ratio, _max_r
 
 f_trim_boxes(_boxes, _max_age) =>
     sz = array.size(_boxes)
-    if sz == 0
-        return
-    for idx = sz - 1 to 0
-        b = array.get(_boxes, idx)
-        left_val = box.get_left(b)
-        age = na(left_val) ? _max_age + 1 : bar_index - int(left_val)
-        if age > _max_age
-            box.delete(b)
-            array.remove(_boxes, idx)
+    if sz > 0
+        for idx = sz - 1 to 0
+            b = array.get(_boxes, idx)
+            left_val = box.get_left(b)
+            age = na(left_val) ? _max_age + 1 : bar_index - int(left_val)
+            if age > _max_age
+                box.delete(b)
+                array.remove(_boxes, idx)
 
 f_price_in_boxes(_boxes) =>
     bool inside = false
