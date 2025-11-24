@@ -133,7 +133,10 @@ f_process_tf(_cfg, _demand_boxes, _supply_boxes) =>
     if not _cfg.enabled
         [false, false, 0.0, 0.0]
     else
-        [o_tf, c_tf, h_tf, l_tf] = request.security(syminfo.tickerid, _cfg.timeframe, [open, close, high, low], barmerge.gaps_off, barmerge.lookahead_off)
+        o_tf = request.security(syminfo.tickerid, _cfg.timeframe, open,  barmerge.gaps_off, barmerge.lookahead_off)
+        c_tf = request.security(syminfo.tickerid, _cfg.timeframe, close, barmerge.gaps_off, barmerge.lookahead_off)
+        h_tf = request.security(syminfo.tickerid, _cfg.timeframe, high,  barmerge.gaps_off, barmerge.lookahead_off)
+        l_tf = request.security(syminfo.tickerid, _cfg.timeframe, low,   barmerge.gaps_off, barmerge.lookahead_off)
         [upper_sum, lower_sum] = f_shadow_sum(o_tf, c_tf, h_tf, l_tf, _cfg.wick_short, _cfg.wick_mid, _cfg.wick_long, _cfg.body_avg_len, _cfg.min_body_ratio, _cfg.max_body_ratio)
 
         f_cleanup_zones(_demand_boxes, _cfg.max_zone_age)
