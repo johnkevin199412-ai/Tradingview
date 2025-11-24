@@ -1,0 +1,59 @@
+//@version=6
+indicator("Wick Pressure Signals", overlay=true)
+
+// Inputs
+tfCalc        = input.timeframe("60",  "تایم‌فریم محاسبه")
+lenCalc       = input.int(14,         "تعداد کندل بررسی",       minval=1)
+bodyAvgLen    = input.int(10,         "C: طول میانگین بدنه",    minval=1)
+bodyMinFactor = input.float(0.8,      "A: حداقل نسبت به میانگین", step=0.1, minval=0.0)
+bodyMaxFactor = input.float(1.2,      "B: حداکثر نسبت به میانگین", step=0.1, minval=0.0)
+atrLenPanel   = input.int(14,         "طول ATR برای پنل",       minval=1)
+panelGapATR   = input.float(1.5,      "فاصله پنل (ضریب ATR)",  minval=0.1)
+panelHATR     = input.float(2.5,      "ارتفاع پنل (ضریب ATR)", minval=0.5)
+
+// Higher timeframe data
+o = request.security(syminfo.tickerid, tfCalc, open)
+h = request.security(syminfo.tickerid, tfCalc, high)
+l = request.security(syminfo.tickerid, tfCalc, low)
+c = request.security(syminfo.tickerid, tfCalc, close)
+
+// Body filter based on average body length
+bodySize     = math.abs(o - c)
+avgBodyPrior = ta.sma(bodySize, bodyAvgLen)[1]
+bodyCond     = not na(avgBodyPrior) and avgBodyPrior > 0 and
+               bodySize >= avgBodyPrior * bodyMinFactor and
+               bodySize <= avgBodyPrior * bodyMaxFactor
+
+// Wick calculations gated by body condition
+upperWickRaw = h - math.max(o, c)
+lowerWickRaw = math.min(o, c) - l
+upperWick    = bodyCond ? upperWickRaw : 0.0
+lowerWick    = bodyCond ? lowerWickRaw : 0.0
+
+sumUpper = ta.sma(upperWick, lenCalc) * lenCalc
+sumLower = ta.sma(lowerWick, lenCalc) * lenCalc
+
+longSignal  = sumLower > sumUpper
+shortSignal = sumUpper > sumLower
+
+plotshape(longSignal,  title="Long",  style=shape.triangleup,   color=color.new(color.lime, 0),
+          location=location.belowbar, size=size.tiny, text="Long")
+plotshape(shortSignal, title="Short", style=shape.triangledown, color=color.new(color.red, 0),
+          location=location.abovebar, size=size.tiny, text="Short")
+
+// Floating panel beneath price
+atrBase      = ta.atr(atrLenPanel)
+panelUpper   = low - atrBase * panelGapATR
+panelLower   = panelUpper - atrBase * panelHATR
+panelRange   = panelUpper - panelLower
+maxSum       = math.max(sumUpper, sumLower)
+safeDivisor  = maxSum > 0 ? maxSum : 1e-6
+normUpper    = panelRange > 0 ? panelLower + (sumUpper / safeDivisor) * panelRange : na
+normLower    = panelRange > 0 ? panelLower + (sumLower / safeDivisor) * panelRange : na
+
+upperBoundPlot = plot(panelUpper, title="Panel Upper Bound", display=display.none)
+lowerBoundPlot = plot(panelLower, title="Panel Lower Bound", display=display.none)
+fill(upperBoundPlot, lowerBoundPlot, color=color.new(color.gray, 90))
+
+plot(normUpper, title="Upper Wick Sum (panel)", color=color.new(color.red, 0),   linewidth=2)
+plot(normLower, title="Lower Wick Sum (panel)", color=color.new(color.green, 0), linewidth=2)
