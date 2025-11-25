@@ -239,7 +239,7 @@ f_manage_flip_zones(_enabled, _src_c, _demand_boxes, _supply_boxes, _flip_boxes,
                     new_box = box.new(left=bar_index, top=zone_top, right=bar_index + _extend, bottom=zone_bot, bgcolor=_flip_demand_color, border_color=color.new(_flip_demand_color, 0), text="Flip D\n"+_tf_label)
                     array.push(_flip_boxes, new_box)
                 supply_idx -= 1
-    na
+    0
 
 // ———————————————————————— آرایه‌های نواحی ————————————————————————
 var box[] demand_zones_tf1 = array.new_box()
