@@ -53,6 +53,8 @@ f_closest(float[] lvlArr) =>
     closest
 
 f_prune(float[] lvlArr, line[] lineArr, int[] barArr) =>
+    if array.size(lvlArr) == 0
+        return
     for i = array.size(lvlArr) - 1 to 0
         bool expired = bar_index - array.get(barArr, i) > srMaxAge
         if expired
