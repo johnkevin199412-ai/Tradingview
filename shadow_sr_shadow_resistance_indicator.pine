@@ -36,10 +36,14 @@ f_smooth(_src) =>
 
 f_isNear(float[] lvlArr, float tolerance) =>
     bool near = false
-    for i = 0 to array.size(lvlArr) - 1
-        float price = array.get(lvlArr, i)
-        near := near or math.abs(close - price) / close <= tolerance
-    near
+    int size = array.size(lvlArr)
+    if size == 0
+        false
+    else
+        for i = 0 to size - 1
+            float price = array.get(lvlArr, i)
+            near := near or math.abs(close - price) / close <= tolerance
+        near
 
 f_closest(float[] lvlArr) =>
     float closest = na
