@@ -85,9 +85,11 @@ f_refresh(float[] lvlArr, int[] barArr, line[] lineArr, color lineColor) =>
 
 f_addLevel(float levelPrice, int pivotBarIndex, float[] lvlArr, line[] lineArr, int[] barArr, color lineColor) =>
     bool tooClose = false
-    for i = 0 to array.size(lvlArr) - 1
-        float existing = array.get(lvlArr, i)
-        tooClose := tooClose or math.abs(existing - levelPrice) / levelPrice <= srMinSpacingPct
+    int count = array.size(lvlArr)
+    if count > 0
+        for i = 0 to count - 1
+            float existing = array.get(lvlArr, i)
+            tooClose := tooClose or math.abs(existing - levelPrice) / levelPrice <= srMinSpacingPct
     if not tooClose
         if array.size(lvlArr) >= srMaxLevels
             array.remove(lvlArr, array.size(lvlArr) - 1)
