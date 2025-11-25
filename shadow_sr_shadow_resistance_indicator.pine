@@ -136,10 +136,14 @@ if not na(pivotLowPrice)
     int pivotIndex = bar_index - srPivotRight
     f_addLevel(pivotLowPrice, pivotIndex, supportLevels, supportLines, supportBars, color.new(color.lime, 15))
 
-f_prune(resistanceLevels, resistanceLines, resistanceBars)
-f_prune(supportLevels, supportLines, supportBars)
-f_refresh(resistanceLevels, resistanceBars, resistanceLines, color.new(color.red, 15))
-f_refresh(supportLevels, supportBars, supportLines, color.new(color.lime, 15))
+resHasData = array.size(resistanceLevels) > 0 and array.size(resistanceLines) > 0 and array.size(resistanceBars) > 0
+supHasData = array.size(supportLevels) > 0 and array.size(supportLines) > 0 and array.size(supportBars) > 0
+if resHasData
+    f_prune(resistanceLevels, resistanceLines, resistanceBars)
+    f_refresh(resistanceLevels, resistanceBars, resistanceLines, color.new(color.red, 15))
+if supHasData
+    f_prune(supportLevels, supportLines, supportBars)
+    f_refresh(supportLevels, supportBars, supportLines, color.new(color.lime, 15))
 
 float nearestResistance = f_closest(resistanceLevels)
 float nearestSupport    = f_closest(supportLevels)
