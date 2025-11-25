@@ -44,13 +44,17 @@ f_isNear(float[] lvlArr, float tolerance) =>
 f_closest(float[] lvlArr) =>
     float closest = na
     float distance = na
-    for i = 0 to array.size(lvlArr) - 1
-        float price = array.get(lvlArr, i)
-        float d = math.abs(price - close)
-        if na(distance) or d < distance
-            closest := price
-            distance := d
-    closest
+    int size = array.size(lvlArr)
+    if size == 0
+        na
+    else
+        for i = 0 to size - 1
+            float price = array.get(lvlArr, i)
+            float d = math.abs(price - close)
+            if na(distance) or d < distance
+                closest := price
+                distance := d
+        closest
 
 f_prune(float[] lvlArr, line[] lineArr, int[] barArr) =>
     if array.size(lvlArr) > 0
