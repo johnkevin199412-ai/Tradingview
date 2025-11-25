@@ -1,0 +1,254 @@
+//@version=6
+indicator("Shadow Range S/R Combo", overlay = true, max_lines_count = 500, max_labels_count = 500, max_boxes_count = 50)
+
+// ──────────────────────── Inputs ────────────────────────
+groupShadow      = "Shadow Logic"
+wickLookback     = input.int(5, "Shadow smoothing bars", minval = 1, maxval = 100, group = groupShadow)
+wickMethod       = input.string("EMA", "Smoothing type", options = ["EMA", "SMA", "RMA"], group = groupShadow)
+wickDominancePct = input.float(18.0, "Dominance threshold (%)", step = 0.1, minval = 0.5, maxval = 100, group = groupShadow)
+wickDominance    = wickDominancePct * 0.01
+minBodyAtr       = input.float(0.35, "Minimum body size (x ATR)", step = 0.05, minval = 0, group = groupShadow)
+bodyLookback     = input.int(14, "ATR period for body filter", minval = 1, group = groupShadow)
+
+groupSR            = "Support / Resistance"
+srPivotLeft        = input.int(3, "Pivot left bars", minval = 1, maxval = 20, group = groupSR)
+srPivotRight       = input.int(3, "Pivot right bars", minval = 1, maxval = 20, group = groupSR)
+srMaxLevels        = input.int(6, "Maximum stored levels", minval = 1, maxval = 20, group = groupSR)
+srLineHistory      = input.int(250, "Line anchor length (bars)", minval = 50, maxval = 2000, group = groupSR)
+srMinSpacingPct    = input.float(0.35, "Min distance between levels (%)", step = 0.05, minval = 0.05, maxval = 5, group = groupSR) * 0.01
+srProximityPct     = input.float(0.35, "Price proximity for entries (%)", step = 0.05, minval = 0.05, maxval = 5, group = groupSR) * 0.01
+srMaxAge           = input.int(800, "Maximum level age (bars)", minval = 50, maxval = 5000, group = groupSR)
+srShowLatestLabels = input.bool(true, "Label newest support/resistance", group = groupSR)
+srShadeZones       = input.bool(true, "Shade newest support & resistance", group = groupSR)
+
+groupViz        = "Visuals & Alerts"
+highlightMode   = input.string("Both", "Background highlight", options = ["Both", "Long only", "Short only", "Off"], group = groupViz)
+showBiasMarkers = input.bool(true, "Show raw shadow bias markers", group = groupViz)
+
+groupPrecision       = "Precision Filters"
+useTrendFilter       = input.bool(true, "Enable higher-timeframe trend filter", group = groupPrecision)
+trendTf              = input.timeframe("60", "Trend timeframe", group = groupPrecision)
+trendLength          = input.int(50, "Trend EMA length", minval = 1, group = groupPrecision)
+trendSource          = input.source(close, "Trend source", group = groupPrecision)
+atrZoneMult          = input.float(0.75, "ATR proximity multiplier", step = 0.05, minval = 0, group = groupPrecision)
+requireRejection     = input.bool(true, "Require rejection candle", group = groupPrecision)
+rejectionRatio       = input.float(1.2, "Shadow/Body ratio for rejection", step = 0.1, minval = 0, group = groupPrecision)
+
+// ──────────────────────── Helpers ────────────────────────
+f_smooth(_src) =>
+    if wickMethod == "SMA"
+        ta.sma(_src, wickLookback)
+    else if wickMethod == "RMA"
+        ta.rma(_src, wickLookback)
+    else
+        ta.ema(_src, wickLookback)
+
+f_isNear(float[] lvlArr, float pctTolerance, float absTolerance) =>
+    int size = array.size(lvlArr)
+    if size == 0
+        false
+    else
+        bool near = false
+        for i = 0 to size - 1
+            float price = array.get(lvlArr, i)
+            bool withinPct = math.abs(close - price) / close <= pctTolerance
+            bool withinAbs = absTolerance > 0 ? math.abs(close - price) <= absTolerance : false
+            near := near or withinPct or withinAbs
+        near
+
+f_nearest(float[] lvlArr) =>
+    int size = array.size(lvlArr)
+    if size == 0
+        na
+    else
+        float closest = na
+        float distance = na
+        for i = 0 to size - 1
+            float price = array.get(lvlArr, i)
+            float d = math.abs(price - close)
+            if na(distance) or d < distance
+                closest := price
+                distance := d
+        closest
+
+f_prune(float[] lvlArr, line[] lineArr, int[] barArr) =>
+    if array.size(lvlArr) > 0
+        for i = array.size(lvlArr) - 1 to 0
+            bool expired = bar_index - array.get(barArr, i) > srMaxAge
+            if expired
+                array.remove(lvlArr, i)
+                line oldLine = array.remove(lineArr, i)
+                line.delete(oldLine)
+                array.remove(barArr, i)
+
+f_refresh(float[] lvlArr, int[] barArr, line[] lineArr, color lineColor) =>
+    int count = math.min(math.min(array.size(lineArr), array.size(lvlArr)), array.size(barArr))
+    if count > 0
+        for i = 0 to count - 1
+            line ln = array.get(lineArr, i)
+            float price = array.get(lvlArr, i)
+            int pivotBar = array.get(barArr, i)
+            int startBar = math.max(pivotBar, bar_index - srLineHistory)
+            line.set_xy1(ln, startBar, price)
+            line.set_xy2(ln, bar_index, price)
+            line.set_color(ln, lineColor)
+            line.set_extend(ln, extend.right)
+
+f_addLevel(float levelPrice, int pivotBarIndex, float[] lvlArr, line[] lineArr, int[] barArr, color lineColor) =>
+    bool tooClose = false
+    int count = array.size(lvlArr)
+    if count > 0
+        for i = 0 to count - 1
+            float existing = array.get(lvlArr, i)
+            tooClose := tooClose or math.abs(existing - levelPrice) / levelPrice <= srMinSpacingPct
+    if not tooClose
+        if array.size(lvlArr) >= srMaxLevels
+            array.remove(lvlArr, array.size(lvlArr) - 1)
+            line oldLine = array.remove(lineArr, array.size(lineArr) - 1)
+            line.delete(oldLine)
+            array.remove(barArr, array.size(barArr) - 1)
+        array.unshift(lvlArr, levelPrice)
+        array.unshift(barArr, pivotBarIndex)
+        line newLine = line.new(pivotBarIndex, levelPrice, pivotBarIndex + 1, levelPrice, extend = extend.right, color = lineColor, width = 1, style = line.style_dashed)
+        array.unshift(lineArr, newLine)
+
+// ──────────────────────── Core calculations ────────────────────────
+float upperShadow = high - math.max(open, close)
+float lowerShadow = math.min(open, close) - low
+float avgUpper    = f_smooth(upperShadow)
+float avgLower    = f_smooth(lowerShadow)
+float wickSpread  = avgUpper + avgLower
+float dominance   = wickSpread != 0 ? (avgUpper - avgLower) / wickSpread : 0
+
+float atr = ta.atr(bodyLookback)
+float body = math.abs(close - open)
+bool bodyPass = atr == 0 ? true : body >= atr * minBodyAtr
+float atrTolerance = atr * atrZoneMult
+float trendSeries = request.security(syminfo.tickerid, trendTf, ta.ema(trendSource, trendLength), gaps = barmerge.gaps_off, lookahead = barmerge.lookahead_off)
+bool longTrendPass = not useTrendFilter or close >= trendSeries
+bool shortTrendPass = not useTrendFilter or close <= trendSeries
+
+bool shortBiasRaw = avgUpper > avgLower * (1 + wickDominance) and bodyPass
+bool longBiasRaw  = avgLower > avgUpper * (1 + wickDominance) and bodyPass
+bool longRejection  = not requireRejection or (close > open and body > 0 and lowerShadow >= body * rejectionRatio)
+bool shortRejection = not requireRejection or (close < open and body > 0 and upperShadow >= body * rejectionRatio)
+
+// ──────────────────────── Support & resistance tracking ────────────────────────
+var float[] resistanceLevels = array.new_float()
+var float[] supportLevels    = array.new_float()
+var line[] resistanceLines   = array.new_line()
+var line[] supportLines      = array.new_line()
+var int[] resistanceBars     = array.new_int()
+var int[] supportBars        = array.new_int()
+var label latestResistanceLb = na
+var label latestSupportLb    = na
+var box resistanceZone       = na
+var box supportZone          = na
+
+float pivotHighPrice = ta.pivothigh(high, srPivotLeft, srPivotRight)
+if not na(pivotHighPrice)
+    int pivotIndex = bar_index - srPivotRight
+    f_addLevel(pivotHighPrice, pivotIndex, resistanceLevels, resistanceLines, resistanceBars, color.new(color.red, 15))
+
+float pivotLowPrice = ta.pivotlow(low, srPivotLeft, srPivotRight)
+if not na(pivotLowPrice)
+    int pivotIndex = bar_index - srPivotRight
+    f_addLevel(pivotLowPrice, pivotIndex, supportLevels, supportLines, supportBars, color.new(color.lime, 15))
+
+resHasData = array.size(resistanceLevels) > 0 and array.size(resistanceLines) > 0 and array.size(resistanceBars) > 0
+supHasData = array.size(supportLevels) > 0 and array.size(supportLines) > 0 and array.size(supportBars) > 0
+if resHasData
+    f_prune(resistanceLevels, resistanceLines, resistanceBars)
+    f_refresh(resistanceLevels, resistanceBars, resistanceLines, color.new(color.red, 15))
+if supHasData
+    f_prune(supportLevels, supportLines, supportBars)
+    f_refresh(supportLevels, supportBars, supportLines, color.new(color.lime, 15))
+
+float nearestResistance = f_nearest(resistanceLevels)
+float nearestSupport    = f_nearest(supportLevels)
+bool nearResistance     = f_isNear(resistanceLevels, srProximityPct, atrTolerance)
+bool nearSupport        = f_isNear(supportLevels, srProximityPct, atrTolerance)
+
+if srShowLatestLabels
+    if not na(latestResistanceLb)
+        label.delete(latestResistanceLb)
+    if not na(latestSupportLb)
+        label.delete(latestSupportLb)
+    if not na(nearestResistance)
+        latestResistanceLb := label.new(bar_index, nearestResistance, text = "R", style = label.style_label_down, color = color.new(color.red, 10), textcolor = color.white, size = size.tiny)
+    if not na(nearestSupport)
+        latestSupportLb := label.new(bar_index, nearestSupport, text = "S", style = label.style_label_up, color = color.new(color.lime, 10), textcolor = color.white, size = size.tiny)
+
+// Shade zones for the newest level of each side
+if srShadeZones
+    float latestResistance = array.size(resistanceLevels) > 0 ? array.get(resistanceLevels, 0) : na
+    float latestSupport = array.size(supportLevels) > 0 ? array.get(supportLevels, 0) : na
+    int leftCoord = math.max(bar_index - srLineHistory, 0)
+    int rightCoord = bar_index
+    if not na(latestResistance)
+        float resBandPct = latestResistance != 0 ? math.max(srProximityPct, atrTolerance / latestResistance) : srProximityPct
+        float resTop = latestResistance * (1 + resBandPct)
+        float resBottom = latestResistance * (1 - resBandPct)
+        if na(resistanceZone)
+            resistanceZone := box.new(leftCoord, resTop, rightCoord, resBottom, bgcolor = color.new(color.red, 90), border_color = color.new(color.red, 80), border_style = line.style_dotted)
+        else
+            box.set_left(resistanceZone, leftCoord)
+            box.set_right(resistanceZone, rightCoord)
+            box.set_top(resistanceZone, resTop)
+            box.set_bottom(resistanceZone, resBottom)
+            box.set_bgcolor(resistanceZone, color.new(color.red, 90))
+            box.set_border_color(resistanceZone, color.new(color.red, 80))
+    else if not na(resistanceZone)
+        box.delete(resistanceZone)
+        resistanceZone := na
+    if not na(latestSupport)
+        float supBandPct = latestSupport != 0 ? math.max(srProximityPct, atrTolerance / latestSupport) : srProximityPct
+        float supTop = latestSupport * (1 + supBandPct)
+        float supBottom = latestSupport * (1 - supBandPct)
+        if na(supportZone)
+            supportZone := box.new(leftCoord, supTop, rightCoord, supBottom, bgcolor = color.new(color.lime, 92), border_color = color.new(color.lime, 80), border_style = line.style_dotted)
+        else
+            box.set_left(supportZone, leftCoord)
+            box.set_right(supportZone, rightCoord)
+            box.set_top(supportZone, supTop)
+            box.set_bottom(supportZone, supBottom)
+            box.set_bgcolor(supportZone, color.new(color.lime, 92))
+            box.set_border_color(supportZone, color.new(color.lime, 80))
+    else if not na(supportZone)
+        box.delete(supportZone)
+        supportZone := na
+else
+    if not na(resistanceZone)
+        box.delete(resistanceZone)
+        resistanceZone := na
+    if not na(supportZone)
+        box.delete(supportZone)
+        supportZone := na
+
+// ──────────────────────── Signals ────────────────────────
+bool longSignal  = longBiasRaw and nearSupport and longRejection and longTrendPass and not shortBiasRaw
+bool shortSignal = shortBiasRaw and nearResistance and shortRejection and shortTrendPass and not longBiasRaw
+
+// Highlight background
+color longBg  = color.new(color.lime, 85)
+color shortBg = color.new(color.red, 85)
+bool paintLongBg  = longSignal and (highlightMode == "Both" or highlightMode == "Long only")
+bool paintShortBg = shortSignal and (highlightMode == "Both" or highlightMode == "Short only")
+bgcolor(paintLongBg ? longBg : paintShortBg ? shortBg : na)
+
+// Base bias markers
+plotshape(showBiasMarkers and longBiasRaw, "Shadow Long Bias", style = shape.circle, location = location.belowbar, size = size.tiny, color = color.new(color.lime, 30), text = "LB")
+plotshape(showBiasMarkers and shortBiasRaw, "Shadow Short Bias", style = shape.circle, location = location.abovebar, size = size.tiny, color = color.new(color.red, 30), text = "SB")
+
+// Confirmed signals
+plotshape(longSignal, "Long Entry", style = shape.triangleup, location = location.belowbar, color = color.lime, size = size.large, text = "LONG", textcolor = color.white, offset = 0)
+plotshape(shortSignal, "Short Entry", style = shape.triangledown, location = location.abovebar, color = color.red, size = size.large, text = "SHORT", textcolor = color.white, offset = 0)
+
+// Data window helpers
+plot(dominance, "Shadow dominance (upper-lower)", display = display.data_window, color = color.new(color.gray, 0))
+plot(nearestSupport, "Nearest support", display = display.data_window, color = color.new(color.lime, 0))
+plot(nearestResistance, "Nearest resistance", display = display.data_window, color = color.new(color.red, 0))
+plot(trendSeries, "Trend EMA (HTF)", display = display.data_window, color = color.new(color.blue, 0))
+
+alertcondition(longSignal, "Shadow Long w/ Support", "Long signal: lower shadows dominant + price near support")
+alertcondition(shortSignal, "Shadow Short w/ Resistance", "Short signal: upper shadows dominant + price near resistance")
