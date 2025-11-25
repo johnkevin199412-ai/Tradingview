@@ -63,7 +63,10 @@ f_prune(float[] lvlArr, line[] lineArr, int[] barArr) =>
                 array.remove(barArr, i)
 
 f_refresh(float[] lvlArr, int[] barArr, line[] lineArr, color lineColor) =>
-    for i = 0 to array.size(lineArr) - 1
+    int count = math.min(math.min(array.size(lineArr), array.size(lvlArr)), array.size(barArr))
+    if count == 0
+        return
+    for i = 0 to count - 1
         line ln = array.get(lineArr, i)
         float price = array.get(lvlArr, i)
         int pivotBar = array.get(barArr, i)
