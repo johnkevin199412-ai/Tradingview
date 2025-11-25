@@ -64,17 +64,16 @@ f_prune(float[] lvlArr, line[] lineArr, int[] barArr) =>
 
 f_refresh(float[] lvlArr, int[] barArr, line[] lineArr, color lineColor) =>
     int count = math.min(math.min(array.size(lineArr), array.size(lvlArr)), array.size(barArr))
-    if count == 0
-        return
-    for i = 0 to count - 1
-        line ln = array.get(lineArr, i)
-        float price = array.get(lvlArr, i)
-        int pivotBar = array.get(barArr, i)
-        int startBar = math.max(pivotBar, bar_index - srLineHistory)
-        line.set_xy1(ln, startBar, price)
-        line.set_xy2(ln, bar_index, price)
-        line.set_color(ln, lineColor)
-        line.set_extend(ln, extend.right)
+    if count > 0
+        for i = 0 to count - 1
+            line ln = array.get(lineArr, i)
+            float price = array.get(lvlArr, i)
+            int pivotBar = array.get(barArr, i)
+            int startBar = math.max(pivotBar, bar_index - srLineHistory)
+            line.set_xy1(ln, startBar, price)
+            line.set_xy2(ln, bar_index, price)
+            line.set_color(ln, lineColor)
+            line.set_extend(ln, extend.right)
 
 f_addLevel(float levelPrice, int pivotBarIndex, float[] lvlArr, line[] lineArr, int[] barArr, color lineColor) =>
     bool tooClose = false
