@@ -35,23 +35,23 @@ f_smooth(_src) =>
         ta.ema(_src, wickLookback)
 
 f_isNear(float[] lvlArr, float tolerance) =>
-    bool near = false
     int size = array.size(lvlArr)
     if size == 0
         false
     else
+        bool near = false
         for i = 0 to size - 1
             float price = array.get(lvlArr, i)
             near := near or math.abs(close - price) / close <= tolerance
         near
 
-f_closest(float[] lvlArr) =>
-    float closest = na
-    float distance = na
+f_nearest(float[] lvlArr) =>
     int size = array.size(lvlArr)
     if size == 0
         na
     else
+        float closest = na
+        float distance = na
         for i = 0 to size - 1
             float price = array.get(lvlArr, i)
             float d = math.abs(price - close)
@@ -145,8 +145,8 @@ if supHasData
     f_prune(supportLevels, supportLines, supportBars)
     f_refresh(supportLevels, supportBars, supportLines, color.new(color.lime, 15))
 
-float nearestResistance = f_closest(resistanceLevels)
-float nearestSupport    = f_closest(supportLevels)
+float nearestResistance = f_nearest(resistanceLevels)
+float nearestSupport    = f_nearest(supportLevels)
 bool nearResistance     = f_isNear(resistanceLevels, srProximityPct)
 bool nearSupport        = f_isNear(supportLevels, srProximityPct)
 
