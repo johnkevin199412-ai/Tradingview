@@ -1,0 +1,410 @@
+//@version=5
+indicator("Shadow Magnet Zone - Multi TF", shorttitle="SMZ-MTF", overlay=true, max_boxes_count=500, dynamic_requests=true)
+
+// ———————————————————————— نواحی Flip ————————————————————————
+flip_group        = "نواحی Flip"
+enable_flip_zones = input.bool(false, "فعال‌سازی نواحی Flip", group=flip_group)
+flip_extend_bars  = input.int(20, "گسترش افقی باکس Flip", minval=1, group=flip_group)
+flip_supply_color = input.color(color.new(color.orange, 65), "رنگ Flip عرضه", group=flip_group)
+flip_demand_color = input.color(color.new(color.blue, 65), "رنگ Flip تقاضا", group=flip_group)
+
+// ———————————————————————— تایم‌فریم ۱ ————————————————————————
+enable_tf1 = input.bool(false, "فعال‌سازی تایم‌فریم ۱")
+tf1 = input.timeframe("1", "تایم‌فریم ۱")
+lookback1_tf1 = input.int(10, "دوره ۱ (TF1)", minval=1, group="تنظیمات TF1")
+lookback2_tf1 = input.int(20, "دوره ۲ (TF1)", minval=1, group="تنظیمات TF1")
+lookback3_tf1 = input.int(50, "دوره ۳ (TF1)", minval=1, group="تنظیمات TF1")
+body_lookback_tf1 = input.int(14, "میانگین بدنه (TF1)", minval=1, group="تنظیمات TF1")
+min_body_ratio_tf1 = input.float(1.0, "حداقل بدنه (TF1)", step=0.1, group="تنظیمات TF1")
+max_body_ratio_tf1 = input.float(3.0, "حداکثر بدنه (TF1)", step=0.1, group="تنظیمات TF1")
+zone_lookback_tf1 = input.int(30, "کندل پایه ناحیه (TF1)", minval=5, group="تنظیمات TF1")
+min_zone_strength_tf1 = input.float(1.5, "حداقل قدرت ناحیه (TF1)", minval=1.0, group="تنظیمات TF1")
+max_zone_age_tf1 = input.int(14, "حداکثر عمر ناحیه (TF1)", minval=1, group="تنظیمات TF1")
+
+// ———————————————————————— تایم‌فریم ۲ ————————————————————————
+enable_tf2 = input.bool(false, "فعال‌سازی تایم‌فریم ۲")
+tf2 = input.timeframe("1", "تایم‌فریم ۲")
+lookback1_tf2 = input.int(10, "دوره ۱ (TF2)", minval=1, group="تنظیمات TF2")
+lookback2_tf2 = input.int(20, "دوره ۲ (TF2)", minval=1, group="تنظیمات TF2")
+lookback3_tf2 = input.int(50, "دوره ۳ (TF2)", minval=1, group="تنظیمات TF2")
+body_lookback_tf2 = input.int(14, "میانگین بدنه (TF2)", minval=1, group="تنظیمات TF2")
+min_body_ratio_tf2 = input.float(1.0, "حداقل بدنه (TF2)", step=0.1, group="تنظیمات TF2")
+max_body_ratio_tf2 = input.float(3.0, "حداکثر بدنه (TF2)", step=0.1, group="تنظیمات TF2")
+zone_lookback_tf2 = input.int(30, "کندل پایه ناحیه (TF2)", minval=5, group="تنظیمات TF2")
+min_zone_strength_tf2 = input.float(1.5, "حداقل قدرت ناحیه (TF2)", minval=1.0, group="تنظیمات TF2")
+max_zone_age_tf2 = input.int(14, "حداکثر عمر ناحیه (TF2)", minval=1, group="تنظیمات TF2")
+
+// ———————————————————————— تایم‌فریم ۳ ————————————————————————
+enable_tf3 = input.bool(false, "فعال‌سازی تایم‌فریم ۳")
+tf3 = input.timeframe("1", "تایم‌فریم ۳")
+lookback1_tf3 = input.int(10, "دوره ۱ (TF3)", minval=1, group="تنظیمات TF3")
+lookback2_tf3 = input.int(20, "دوره ۲ (TF3)", minval=1, group="تنظیمات TF3")
+lookback3_tf3 = input.int(50, "دوره ۳ (TF3)", minval=1, group="تنظیمات TF3")
+body_lookback_tf3 = input.int(14, "میانگین بدنه (TF3)", minval=1, group="تنظیمات TF3")
+min_body_ratio_tf3 = input.float(1.0, "حداقل بدنه (TF3)", step=0.1, group="تنظیمات TF3")
+max_body_ratio_tf3 = input.float(3.0, "حداکثر بدنه (TF3)", step=0.1, group="تنظیمات TF3")
+zone_lookback_tf3 = input.int(30, "کندل پایه ناحیه (TF3)", minval=5, group="تنظیمات TF3")
+min_zone_strength_tf3 = input.float(1.5, "حداقل قدرت ناحیه (TF3)", minval=1.0, group="تنظیمات TF3")
+max_zone_age_tf3 = input.int(14, "حداکثر عمر ناحیه (TF3)", minval=1, group="تنظیمات TF3")
+
+// ———————————————————————— تایم‌فریم ۴ ————————————————————————
+enable_tf4 = input.bool(false, "فعال‌سازی تایم‌فریم ۴")
+tf4 = input.timeframe("1", "تایم‌فریم ۴")
+lookback1_tf4 = input.int(10, "دوره ۱ (TF4)", minval=1, group="تنظیمات TF4")
+lookback2_tf4 = input.int(20, "دوره ۲ (TF4)", minval=1, group="تنظیمات TF4")
+lookback3_tf4 = input.int(50, "دوره ۳ (TF4)", minval=1, group="تنظیمات TF4")
+body_lookback_tf4 = input.int(14, "میانگین بدنه (TF4)", minval=1, group="تنظیمات TF4")
+min_body_ratio_tf4 = input.float(1.0, "حداقل بدنه (TF4)", step=0.1, group="تنظیمات TF4")
+max_body_ratio_tf4 = input.float(3.0, "حداکثر بدنه (TF4)", step=0.1, group="تنظیمات TF4")
+zone_lookback_tf4 = input.int(30, "کندل پایه ناحیه (TF4)", minval=5, group="تنظیمات TF4")
+min_zone_strength_tf4 = input.float(1.5, "حداقل قدرت ناحیه (TF4)", minval=1.0, group="تنظیمات TF4")
+max_zone_age_tf4 = input.int(14, "حداکثر عمر ناحیه (TF4)", minval=1, group="تنظیمات TF4")
+
+// ———————————————————————— تایم‌فریم ۵ ————————————————————————
+enable_tf5 = input.bool(false, "فعال‌سازی تایم‌فریم ۵")
+tf5 = input.timeframe("1", "تایم‌فریم ۵")
+lookback1_tf5 = input.int(10, "دوره ۱ (TF5)", minval=1, group="تنظیمات TF5")
+lookback2_tf5 = input.int(20, "دوره ۲ (TF5)", minval=1, group="تنظیمات TF5")
+lookback3_tf5 = input.int(50, "دوره ۳ (TF5)", minval=1, group="تنظیمات TF5")
+body_lookback_tf5 = input.int(14, "میانگین بدنه (TF5)", minval=1, group="تنظیمات TF5")
+min_body_ratio_tf5 = input.float(1.0, "حداقل بدنه (TF5)", step=0.1, group="تنظیمات TF5")
+max_body_ratio_tf5 = input.float(3.0, "حداکثر بدنه (TF5)", step=0.1, group="تنظیمات TF5")
+zone_lookback_tf5 = input.int(30, "کندل پایه ناحیه (TF5)", minval=5, group="تنظیمات TF5")
+min_zone_strength_tf5 = input.float(1.5, "حداقل قدرت ناحیه (TF5)", minval=1.0, group="تنظیمات TF5")
+max_zone_age_tf5 = input.int(14, "حداکثر عمر ناحیه (TF5)", minval=1, group="تنظیمات TF5")
+
+// ———————————————————————— تایم‌فریم ۶ ————————————————————————
+enable_tf6 = input.bool(false, "فعال‌سازی تایم‌فریم ۶")
+tf6 = input.timeframe("1", "تایم‌فریم ۶")
+lookback1_tf6 = input.int(10, "دوره ۱ (TF6)", minval=1, group="تنظیمات TF6")
+lookback2_tf6 = input.int(20, "دوره ۲ (TF6)", minval=1, group="تنظیمات TF6")
+lookback3_tf6 = input.int(50, "دوره ۳ (TF6)", minval=1, group="تنظیمات TF6")
+body_lookback_tf6 = input.int(14, "میانگین بدنه (TF6)", minval=1, group="تنظیمات TF6")
+min_body_ratio_tf6 = input.float(1.0, "حداقل بدنه (TF6)", step=0.1, group="تنظیمات TF6")
+max_body_ratio_tf6 = input.float(3.0, "حداکثر بدنه (TF6)", step=0.1, group="تنظیمات TF6")
+zone_lookback_tf6 = input.int(30, "کندل پایه ناحیه (TF6)", minval=5, group="تنظیمات TF6")
+min_zone_strength_tf6 = input.float(1.5, "حداقل قدرت ناحیه (TF6)", minval=1.0, group="تنظیمات TF6")
+max_zone_age_tf6 = input.int(14, "حداکثر عمر ناحیه (TF6)", minval=1, group="تنظیمات TF6")
+
+// ———————————————————————— تایم‌فریم ۷ ————————————————————————
+enable_tf7 = input.bool(false, "فعال‌سازی تایم‌فریم ۷")
+tf7 = input.timeframe("1", "تایم‌فریم ۷")
+lookback1_tf7 = input.int(10, "دوره ۱ (TF7)", minval=1, group="تنظیمات TF7")
+lookback2_tf7 = input.int(20, "دوره ۲ (TF7)", minval=1, group="تنظیمات TF7")
+lookback3_tf7 = input.int(50, "دوره ۳ (TF7)", minval=1, group="تنظیمات TF7")
+body_lookback_tf7 = input.int(14, "میانگین بدنه (TF7)", minval=1, group="تنظیمات TF7")
+min_body_ratio_tf7 = input.float(1.0, "حداقل بدنه (TF7)", step=0.1, group="تنظیمات TF7")
+max_body_ratio_tf7 = input.float(3.0, "حداکثر بدنه (TF7)", step=0.1, group="تنظیمات TF7")
+zone_lookback_tf7 = input.int(30, "کندل پایه ناحیه (TF7)", minval=5, group="تنظیمات TF7")
+min_zone_strength_tf7 = input.float(1.5, "حداقل قدرت ناحیه (TF7)", minval=1.0, group="تنظیمات TF7")
+max_zone_age_tf7 = input.int(14, "حداکثر عمر ناحیه (TF7)", minval=1, group="تنظیمات TF7")
+
+// ———————————————————————— تایم‌فریم ۸ ————————————————————————
+enable_tf8 = input.bool(false, "فعال‌سازی تایم‌فریم ۸")
+tf8 = input.timeframe("1", "تایم‌فریم ۸")
+lookback1_tf8 = input.int(10, "دوره ۱ (TF8)", minval=1, group="تنظیمات TF8")
+lookback2_tf8 = input.int(20, "دوره ۲ (TF8)", minval=1, group="تنظیمات TF8")
+lookback3_tf8 = input.int(50, "دوره ۳ (TF8)", minval=1, group="تنظیمات TF8")
+body_lookback_tf8 = input.int(14, "میانگین بدنه (TF8)", minval=1, group="تنظیمات TF8")
+min_body_ratio_tf8 = input.float(1.0, "حداقل بدنه (TF8)", step=0.1, group="تنظیمات TF8")
+max_body_ratio_tf8 = input.float(3.0, "حداکثر بدنه (TF8)", step=0.1, group="تنظیمات TF8")
+zone_lookback_tf8 = input.int(30, "کندل پایه ناحیه (TF8)", minval=5, group="تنظیمات TF8")
+min_zone_strength_tf8 = input.float(1.5, "حداقل قدرت ناحیه (TF8)", minval=1.0, group="تنظیمات TF8")
+max_zone_age_tf8 = input.int(14, "حداکثر عمر ناحیه (TF8)", minval=1, group="تنظیمات TF8")
+
+// ———————————————————————— تایم‌فریم ۹ ————————————————————————
+enable_tf9 = input.bool(false, "فعال‌سازی تایم‌فریم ۹")
+tf9 = input.timeframe("1", "تایم‌فریم ۹")
+lookback1_tf9 = input.int(10, "دوره ۱ (TF9)", minval=1, group="تنظیمات TF9")
+lookback2_tf9 = input.int(20, "دوره ۲ (TF9)", minval=1, group="تنظیمات TF9")
+lookback3_tf9 = input.int(50, "دوره ۳ (TF9)", minval=1, group="تنظیمات TF9")
+body_lookback_tf9 = input.int(14, "میانگین بدنه (TF9)", minval=1, group="تنظیمات TF9")
+min_body_ratio_tf9 = input.float(1.0, "حداقل بدنه (TF9)", step=0.1, group="تنظیمات TF9")
+max_body_ratio_tf9 = input.float(3.0, "حداکثر بدنه (TF9)", step=0.1, group="تنظیمات TF9")
+zone_lookback_tf9 = input.int(30, "کندل پایه ناحیه (TF9)", minval=5, group="تنظیمات TF9")
+min_zone_strength_tf9 = input.float(1.5, "حداقل قدرت ناحیه (TF9)", minval=1.0, group="تنظیمات TF9")
+max_zone_age_tf9 = input.int(14, "حداکثر عمر ناحیه (TF9)", minval=1, group="تنظیمات TF9")
+
+// ———————————————————————— تایم‌فریم ۱۰ ————————————————————————
+enable_tf10 = input.bool(false, "فعال‌سازی تایم‌فریم ۱۰")
+tf10 = input.timeframe("1", "تایم‌فریم ۱۰")
+lookback1_tf10 = input.int(10, "دوره ۱ (TF10)", minval=1, group="تنظیمات TF10")
+lookback2_tf10 = input.int(20, "دوره ۲ (TF10)", minval=1, group="تنظیمات TF10")
+lookback3_tf10 = input.int(50, "دوره ۳ (TF10)", minval=1, group="تنظیمات TF10")
+body_lookback_tf10 = input.int(14, "میانگین بدنه (TF10)", minval=1, group="تنظیمات TF10")
+min_body_ratio_tf10 = input.float(1.0, "حداقل بدنه (TF10)", step=0.1, group="تنظیمات TF10")
+max_body_ratio_tf10 = input.float(3.0, "حداکثر بدنه (TF10)", step=0.1, group="تنظیمات TF10")
+zone_lookback_tf10 = input.int(30, "کندل پایه ناحیه (TF10)", minval=5, group="تنظیمات TF10")
+min_zone_strength_tf10 = input.float(1.5, "حداقل قدرت ناحیه (TF10)", minval=1.0, group="تنظیمات TF10")
+max_zone_age_tf10 = input.int(14, "حداکثر عمر ناحیه (TF10)", minval=1, group="تنظیمات TF10")
+
+// ———————————————————————— تابع محاسبه سایه‌ها ————————————————————————
+f_shadow_sum(_src_o, _src_c, _src_h, _src_l, _lookback1, _lookback2, _lookback3, _body_lookback, _min_body, _max_body) =>
+    upper_sum = 0.0
+    lower_sum = 0.0
+    max_lookback = math.max(_lookback1, math.max(_lookback2, _lookback3))
+    if bar_index <= max_lookback
+        [upper_sum, lower_sum]
+    lens = array.from(_lookback1, _lookback2, _lookback3)
+    for len in lens
+        for i = 1 to len
+            if bar_index <= i
+                continue
+            o = _src_o[i]
+            c = _src_c[i]
+            h = _src_h[i]
+            l = _src_l[i]
+            body = math.abs(c - o)
+            upper_shadow = h - math.max(o, c)
+            lower_shadow = math.min(o, c) - l
+            sum_body = 0.0
+            for j = 1 to _body_lookback
+                idx = i + j
+                if idx < bar_index
+                    sum_body += math.abs(_src_c[idx] - _src_o[idx])
+            avg_body = _body_lookback > 0 ? sum_body / _body_lookback : 1
+            if body >= _min_body * avg_body and body <= _max_body * avg_body and body > 0
+                upper_sum += upper_shadow
+                lower_sum += lower_shadow
+    [upper_sum, lower_sum]
+
+// ———————————————————————— تابع تشخیص ناحیه ————————————————————————
+f_find_zones(_src_o, _src_c, _src_h, _src_l, _zone_lookback, _min_strength, _tf_label, _demand_boxes, _supply_boxes, _max_zone_age) =>
+    while array.size(_demand_boxes) > 0
+        b = array.get(_demand_boxes, array.size(_demand_boxes) - 1)
+        if bar_index - box.get_left(b) > _max_zone_age
+            box.delete(b)
+            array.pop(_demand_boxes)
+        else
+            break
+    while array.size(_supply_boxes) > 0
+        b = array.get(_supply_boxes, array.size(_supply_boxes) - 1)
+        if bar_index - box.get_left(b) > _max_zone_age
+            box.delete(b)
+            array.pop(_supply_boxes)
+        else
+            break
+    if bar_index > _zone_lookback + 1
+        base_o = _src_o[_zone_lookback]
+        base_c = _src_c[_zone_lookback]
+        base_h = _src_h[_zone_lookback]
+        base_l = _src_l[_zone_lookback]
+        base_body = math.abs(base_c - base_o)
+        trigger_l = _src_l[1]
+        trigger_h = _src_h[1]
+        if base_l > trigger_l and (base_h - trigger_l) >= _min_strength * base_body
+            top_zone = base_l
+            bot_zone = math.min(base_l, trigger_l)
+            new_box = box.new(bar_index - _zone_lookback, top_zone, bar_index + 20, bot_zone, bgcolor=color.new(color.green, 90), border_color=color.green, text="D\n"+_tf_label)
+            array.push(_demand_boxes, new_box)
+        if base_h < trigger_h and (trigger_h - base_l) >= _min_strength * base_body
+            top_zone = trigger_h
+            bot_zone = base_h
+            new_box = box.new(bar_index - _zone_lookback, top_zone, bar_index + 20, bot_zone, bgcolor=color.new(color.red, 90), border_color=color.red, text="S\n"+_tf_label)
+            array.push(_supply_boxes, new_box)
+
+// ———————————————————————— تابع مدیریت نواحی Flip ————————————————————————
+f_manage_flip_zones(_enabled, _src_c, _demand_boxes, _supply_boxes, _flip_boxes, _max_zone_age, _tf_label, _extend, _flip_supply_color, _flip_demand_color) =>
+    if not _enabled
+        while array.size(_flip_boxes) > 0
+            box.delete(array.pop(_flip_boxes))
+        return
+    idx = array.size(_flip_boxes) - 1
+    while idx >= 0
+        b = array.get(_flip_boxes, idx)
+        if bar_index - box.get_left(b) > _max_zone_age
+            box.delete(b)
+            array.remove(_flip_boxes, idx)
+        idx -= 1
+    if na(_src_c) or na(_src_c[1])
+        return
+    idx = array.size(_demand_boxes) - 1
+    while idx >= 0
+        b = array.get(_demand_boxes, idx)
+        zone_top = box.get_top(b)
+        zone_bot = box.get_bottom(b)
+        if _src_c < zone_bot and _src_c[1] >= zone_bot
+            array.remove(_demand_boxes, idx)
+            box.delete(b)
+            new_box = box.new(bar_index, zone_top, bar_index + _extend, zone_bot, bgcolor=_flip_supply_color, border_color=color.new(_flip_supply_color, 0), text="Flip S\n"+_tf_label)
+            array.push(_flip_boxes, new_box)
+        idx -= 1
+    idx = array.size(_supply_boxes) - 1
+    while idx >= 0
+        b = array.get(_supply_boxes, idx)
+        zone_top = box.get_top(b)
+        zone_bot = box.get_bottom(b)
+        if _src_c > zone_top and _src_c[1] <= zone_top
+            array.remove(_supply_boxes, idx)
+            box.delete(b)
+            new_box = box.new(bar_index, zone_top, bar_index + _extend, zone_bot, bgcolor=_flip_demand_color, border_color=color.new(_flip_demand_color, 0), text="Flip D\n"+_tf_label)
+            array.push(_flip_boxes, new_box)
+        idx -= 1
+
+// ———————————————————————— آرایه‌های نواحی ————————————————————————
+var box[] demand_zones_tf1 = array.new_box()
+var box[] supply_zones_tf1 = array.new_box()
+var box[] flip_zones_tf1   = array.new_box()
+var box[] demand_zones_tf2 = array.new_box()
+var box[] supply_zones_tf2 = array.new_box()
+var box[] flip_zones_tf2   = array.new_box()
+var box[] demand_zones_tf3 = array.new_box()
+var box[] supply_zones_tf3 = array.new_box()
+var box[] flip_zones_tf3   = array.new_box()
+var box[] demand_zones_tf4 = array.new_box()
+var box[] supply_zones_tf4 = array.new_box()
+var box[] flip_zones_tf4   = array.new_box()
+var box[] demand_zones_tf5 = array.new_box()
+var box[] supply_zones_tf5 = array.new_box()
+var box[] flip_zones_tf5   = array.new_box()
+var box[] demand_zones_tf6 = array.new_box()
+var box[] supply_zones_tf6 = array.new_box()
+var box[] flip_zones_tf6   = array.new_box()
+var box[] demand_zones_tf7 = array.new_box()
+var box[] supply_zones_tf7 = array.new_box()
+var box[] flip_zones_tf7   = array.new_box()
+var box[] demand_zones_tf8 = array.new_box()
+var box[] supply_zones_tf8 = array.new_box()
+var box[] flip_zones_tf8   = array.new_box()
+var box[] demand_zones_tf9 = array.new_box()
+var box[] supply_zones_tf9 = array.new_box()
+var box[] flip_zones_tf9   = array.new_box()
+var box[] demand_zones_tf10 = array.new_box()
+var box[] supply_zones_tf10 = array.new_box()
+var box[] flip_zones_tf10   = array.new_box()
+
+// ———————————————————————— متغیرهای سیگنال ————————————————————————
+var bool long_tf1 = false, short_tf1 = false
+var bool long_tf2 = false, short_tf2 = false
+var bool long_tf3 = false, short_tf3 = false
+var bool long_tf4 = false, short_tf4 = false
+var bool long_tf5 = false, short_tf5 = false
+var bool long_tf6 = false, short_tf6 = false
+var bool long_tf7 = false, short_tf7 = false
+var bool long_tf8 = false, short_tf8 = false
+var bool long_tf9 = false, short_tf9 = false
+var bool long_tf10 = false, short_tf10 = false
+
+// ———————————————————————— درخواست داده‌های تایم‌فریم‌ها ————————————————————————
+[o1, c1, h1, l1] = request.security(syminfo.tickerid, tf1, [open, close, high, low], barmerge.gaps_off, barmerge.lookahead_on)
+[o2, c2, h2, l2] = request.security(syminfo.tickerid, tf2, [open, close, high, low], barmerge.gaps_off, barmerge.lookahead_on)
+[o3, c3, h3, l3] = request.security(syminfo.tickerid, tf3, [open, close, high, low], barmerge.gaps_off, barmerge.lookahead_on)
+[o4, c4, h4, l4] = request.security(syminfo.tickerid, tf4, [open, close, high, low], barmerge.gaps_off, barmerge.lookahead_on)
+[o5, c5, h5, l5] = request.security(syminfo.tickerid, tf5, [open, close, high, low], barmerge.gaps_off, barmerge.lookahead_on)
+[o6, c6, h6, l6] = request.security(syminfo.tickerid, tf6, [open, close, high, low], barmerge.gaps_off, barmerge.lookahead_on)
+[o7, c7, h7, l7] = request.security(syminfo.tickerid, tf7, [open, close, high, low], barmerge.gaps_off, barmerge.lookahead_on)
+[o8, c8, h8, l8] = request.security(syminfo.tickerid, tf8, [open, close, high, low], barmerge.gaps_off, barmerge.lookahead_on)
+[o9, c9, h9, l9] = request.security(syminfo.tickerid, tf9, [open, close, high, low], barmerge.gaps_off, barmerge.lookahead_on)
+[o10, c10, h10, l10] = request.security(syminfo.tickerid, tf10, [open, close, high, low], barmerge.gaps_off, barmerge.lookahead_on)
+
+// ———————————————————————— پردازش تایم‌فریم‌ها ————————————————————————
+process_tf(_enable, _o, _c, _h, _l, _zone_lookback, _min_zone_strength, _tf_label, _demand_boxes, _supply_boxes, _flip_boxes, _max_zone_age, _lookback1, _lookback2, _lookback3, _body_lookback, _min_body, _max_body) =>
+    var bool long_sig = false
+    var bool short_sig = false
+    if _enable
+        f_find_zones(_o, _c, _h, _l, _zone_lookback, _min_zone_strength, _tf_label, _demand_boxes, _supply_boxes, _max_zone_age)
+        f_manage_flip_zones(enable_flip_zones, _c, _demand_boxes, _supply_boxes, _flip_boxes, _max_zone_age, _tf_label, flip_extend_bars, flip_supply_color, flip_demand_color)
+        [upper_sum, lower_sum] = f_shadow_sum(_o, _c, _h, _l, _lookback1, _lookback2, _lookback3, _body_lookback, _min_body, _max_body)
+        in_demand = false
+        in_supply = false
+        for b in _demand_boxes
+            if low <= box.get_top(b) and high >= box.get_bottom(b)
+                in_demand := true
+        for b in _supply_boxes
+            if high >= box.get_bottom(b) and low <= box.get_top(b)
+                in_supply := true
+        bullish = lower_sum > upper_sum
+        bearish = upper_sum > lower_sum
+        long_sig := bullish and in_demand
+        short_sig := bearish and in_supply
+    [long_sig, short_sig]
+
+[long_tf1, short_tf1] = process_tf(enable_tf1, o1, c1, h1, l1, zone_lookback_tf1, min_zone_strength_tf1, "TF1", demand_zones_tf1, supply_zones_tf1, flip_zones_tf1, max_zone_age_tf1, lookback1_tf1, lookback2_tf1, lookback3_tf1, body_lookback_tf1, min_body_ratio_tf1, max_body_ratio_tf1)
+[long_tf2, short_tf2] = process_tf(enable_tf2, o2, c2, h2, l2, zone_lookback_tf2, min_zone_strength_tf2, "TF2", demand_zones_tf2, supply_zones_tf2, flip_zones_tf2, max_zone_age_tf2, lookback1_tf2, lookback2_tf2, lookback3_tf2, body_lookback_tf2, min_body_ratio_tf2, max_body_ratio_tf2)
+[long_tf3, short_tf3] = process_tf(enable_tf3, o3, c3, h3, l3, zone_lookback_tf3, min_zone_strength_tf3, "TF3", demand_zones_tf3, supply_zones_tf3, flip_zones_tf3, max_zone_age_tf3, lookback1_tf3, lookback2_tf3, lookback3_tf3, body_lookback_tf3, min_body_ratio_tf3, max_body_ratio_tf3)
+[long_tf4, short_tf4] = process_tf(enable_tf4, o4, c4, h4, l4, zone_lookback_tf4, min_zone_strength_tf4, "TF4", demand_zones_tf4, supply_zones_tf4, flip_zones_tf4, max_zone_age_tf4, lookback1_tf4, lookback2_tf4, lookback3_tf4, body_lookback_tf4, min_body_ratio_tf4, max_body_ratio_tf4)
+[long_tf5, short_tf5] = process_tf(enable_tf5, o5, c5, h5, l5, zone_lookback_tf5, min_zone_strength_tf5, "TF5", demand_zones_tf5, supply_zones_tf5, flip_zones_tf5, max_zone_age_tf5, lookback1_tf5, lookback2_tf5, lookback3_tf5, body_lookback_tf5, min_body_ratio_tf5, max_body_ratio_tf5)
+[long_tf6, short_tf6] = process_tf(enable_tf6, o6, c6, h6, l6, zone_lookback_tf6, min_zone_strength_tf6, "TF6", demand_zones_tf6, supply_zones_tf6, flip_zones_tf6, max_zone_age_tf6, lookback1_tf6, lookback2_tf6, lookback3_tf6, body_lookback_tf6, min_body_ratio_tf6, max_body_ratio_tf6)
+[long_tf7, short_tf7] = process_tf(enable_tf7, o7, c7, h7, l7, zone_lookback_tf7, min_zone_strength_tf7, "TF7", demand_zones_tf7, supply_zones_tf7, flip_zones_tf7, max_zone_age_tf7, lookback1_tf7, lookback2_tf7, lookback3_tf7, body_lookback_tf7, min_body_ratio_tf7, max_body_ratio_tf7)
+[long_tf8, short_tf8] = process_tf(enable_tf8, o8, c8, h8, l8, zone_lookback_tf8, min_zone_strength_tf8, "TF8", demand_zones_tf8, supply_zones_tf8, flip_zones_tf8, max_zone_age_tf8, lookback1_tf8, lookback2_tf8, lookback3_tf8, body_lookback_tf8, min_body_ratio_tf8, max_body_ratio_tf8)
+[long_tf9, short_tf9] = process_tf(enable_tf9, o9, c9, h9, l9, zone_lookback_tf9, min_zone_strength_tf9, "TF9", demand_zones_tf9, supply_zones_tf9, flip_zones_tf9, max_zone_age_tf9, lookback1_tf9, lookback2_tf9, lookback3_tf9, body_lookback_tf9, min_body_ratio_tf9, max_body_ratio_tf9)
+[long_tf10, short_tf10] = process_tf(enable_tf10, o10, c10, h10, l10, zone_lookback_tf10, min_zone_strength_tf10, "TF10", demand_zones_tf10, supply_zones_tf10, flip_zones_tf10, max_zone_age_tf10, lookback1_tf10, lookback2_tf10, lookback3_tf10, body_lookback_tf10, min_body_ratio_tf10, max_body_ratio_tf10)
+
+// ———————————————————————— رسم سیگنال‌ها ————————————————————————
+plotshape(long_tf1,  title="لانگ TF1", location=location.belowbar, color=color.new(color.green, 0), style=shape.triangleup,   size=size.small, text="TF1")
+plotshape(short_tf1, title="شورت TF1", location=location.abovebar, color=color.new(color.red, 0),   style=shape.triangledown, size=size.small, text="TF1")
+
+plotshape(long_tf2,  title="لانگ TF2", location=location.belowbar, color=color.new(color.lime, 0), style=shape.triangleup,   size=size.normal, text="TF2")
+plotshape(short_tf2, title="شورت TF2", location=location.abovebar, color=color.new(color.maroon, 0),   style=shape.triangledown, size=size.normal, text="TF2")
+
+plotshape(long_tf3,  title="لانگ TF3", location=location.belowbar, color=color.new(color.teal, 0), style=shape.triangleup,   size=size.large, text="TF3")
+plotshape(short_tf3, title="شورت TF3", location=location.abovebar, color=color.new(color.purple, 0),   style=shape.triangledown, size=size.large, text="TF3")
+
+plotshape(long_tf4,  title="لانگ TF4", location=location.belowbar, color=color.new(color.blue, 0), style=shape.triangleup,   size=size.small, text="TF4")
+plotshape(short_tf4, title="شورت TF4", location=location.abovebar, color=color.new(color.orange, 0),   style=shape.triangledown, size=size.small, text="TF4")
+
+plotshape(long_tf5,  title="لانگ TF5", location=location.belowbar, color=color.new(color.aqua, 0), style=shape.triangleup,   size=size.normal, text="TF5")
+plotshape(short_tf5, title="شورت TF5", location=location.abovebar, color=color.new(color.fuchsia, 0),   style=shape.triangledown, size=size.normal, text="TF5")
+
+plotshape(long_tf6,  title="لانگ TF6", location=location.belowbar, color=color.new(color.navy, 0), style=shape.triangleup,   size=size.large, text="TF6")
+plotshape(short_tf6, title="شورت TF6", location=location.abovebar, color=color.new(color.olive, 0),   style=shape.triangledown, size=size.large, text="TF6")
+
+plotshape(long_tf7,  title="لانگ TF7", location=location.belowbar, color=color.new(color.silver, 0), style=shape.triangleup,   size=size.small, text="TF7")
+plotshape(short_tf7, title="شورت TF7", location=location.abovebar, color=color.new(color.yellow, 0),   style=shape.triangledown, size=size.small, text="TF7")
+
+plotshape(long_tf8,  title="لانگ TF8", location=location.belowbar, color=color.new(color.gray, 0), style=shape.triangleup,   size=size.normal, text="TF8")
+plotshape(short_tf8, title="شورت TF8", location=location.abovebar, color=color.new(color.white, 0),   style=shape.triangledown, size=size.normal, text="TF8")
+
+plotshape(long_tf9,  title="لانگ TF9", location=location.belowbar, color=color.new(color.black, 0), style=shape.triangleup,   size=size.large, text="TF9")
+plotshape(short_tf9, title="شورت TF9", location=location.abovebar, color=color.new(color.red, 0),   style=shape.triangledown, size=size.large, text="TF9")
+
+plotshape(long_tf10,  title="لانگ TF10", location=location.belowbar, color=color.new(color.maroon, 0), style=shape.triangleup,   size=size.small, text="TF10")
+plotshape(short_tf10, title="شورت TF10", location=location.abovebar, color=color.new(color.aqua, 0),   style=shape.triangledown, size=size.small, text="TF10")
+
+// ———————————————————————— آلارم‌ها ————————————————————————
+alertcondition(long_tf1,  "لانگ TF1", "TF1: سایه پایین + تقاضا → BUY")
+alertcondition(short_tf1, "شورت TF1", "TF1: سایه بالا + عرضه → SELL")
+alertcondition(long_tf2,  "لانگ TF2", "TF2: سایه پایین + تقاضا → BUY")
+alertcondition(short_tf2, "شورت TF2", "TF2: سایه بالا + عرضه → SELL")
+alertcondition(long_tf3,  "لانگ TF3", "TF3: سایه پایین + تقاضا → BUY")
+alertcondition(short_tf3, "شورت TF3", "TF3: سایه بالا + عرضه → SELL")
+alertcondition(long_tf4,  "لانگ TF4", "TF4: سایه پایین + تقاضا → BUY")
+alertcondition(short_tf4, "شورت TF4", "TF4: سایه بالا + عرضه → SELL")
+alertcondition(long_tf5,  "لانگ TF5", "TF5: سایه پایین + تقاضا → BUY")
+alertcondition(short_tf5, "شورت TF5", "TF5: سایه بالا + عرضه → SELL")
+alertcondition(long_tf6,  "لانگ TF6", "TF6: سایه پایین + تقاضا → BUY")
+alertcondition(short_tf6, "شورت TF6", "TF6: سایه بالا + عرضه → SELL")
+alertcondition(long_tf7,  "لانگ TF7", "TF7: سایه پایین + تقاضا → BUY")
+alertcondition(short_tf7, "شورت TF7", "TF7: سایه بالا + عرضه → SELL")
+alertcondition(long_tf8,  "لانگ TF8", "TF8: سایه پایین + تقاضا → BUY")
+alertcondition(short_tf8, "شورت TF8", "TF8: سایه بالا + عرضه → SELL")
+alertcondition(long_tf9,  "لانگ TF9", "TF9: سایه پایین + تقاضا → BUY")
+alertcondition(short_tf9, "شورت TF9", "TF9: سایه بالا + عرضه → SELL")
+alertcondition(long_tf10,  "لانگ TF10", "TF10: سایه پایین + تقاضا → BUY")
+alertcondition(short_tf10, "شورت TF10", "TF10: سایه بالا + عرضه → SELL")
+
+// ———————————————————————— جدول اطلاعات ————————————————————————
+var table info = table.new(position.top_right, 2, 11, bgcolor=color.new(color.black, 85), border_width=1)
+if bar_index % 10 == 0
+    table.cell(info, 0, 0, "تایم‌فریم", bgcolor=color.gray, text_color=color.white)
+    table.cell(info, 1, 0, "سیگنال", bgcolor=color.gray, text_color=color.white)
+    table.cell(info, 0, 1, "TF1", text_color=enable_tf1 ? color.white : color.gray)
+    table.cell(info, 1, 1, long_tf1 ? "لانگ" : short_tf1 ? "شورت" : "خنثی", text_color=long_tf1 ? color.green : short_tf1 ? color.red : color.gray)
+    table.cell(info, 0, 2, "TF2", text_color=enable_tf2 ? color.white : color.gray)
+    table.cell(info, 1, 2, long_tf2 ? "لانگ" : short_tf2 ? "شورت" : "خنثی", text_color=long_tf2 ? color.lime : short_tf2 ? color.maroon : color.gray)
+    table.cell(info, 0, 3, "TF3", text_color=enable_tf3 ? color.white : color.gray)
+    table.cell(info, 1, 3, long_tf3 ? "لانگ" : short_tf3 ? "شورت" : "خنثی", text_color=long_tf3 ? color.teal : short_tf3 ? color.purple : color.gray)
+    table.cell(info, 0, 4, "TF4", text_color=enable_tf4 ? color.white : color.gray)
+    table.cell(info, 1, 4, long_tf4 ? "لانگ" : short_tf4 ? "شورت" : "خنثی", text_color=long_tf4 ? color.blue : short_tf4 ? color.orange : color.gray)
+    table.cell(info, 0, 5, "TF5", text_color=enable_tf5 ? color.white : color.gray)
+    table.cell(info, 1, 5, long_tf5 ? "لانگ" : short_tf5 ? "شورت" : "خنثی", text_color=long_tf5 ? color.aqua : short_tf5 ? color.fuchsia : color.gray)
+    table.cell(info, 0, 6, "TF6", text_color=enable_tf6 ? color.white : color.gray)
+    table.cell(info, 1, 6, long_tf6 ? "لانگ" : short_tf6 ? "شورت" : "خنثی", text_color=long_tf6 ? color.navy : short_tf6 ? color.olive : color.gray)
+    table.cell(info, 0, 7, "TF7", text_color=enable_tf7 ? color.white : color.gray)
+    table.cell(info, 1, 7, long_tf7 ? "لانگ" : short_tf7 ? "شورت" : "خنثی", text_color=long_tf7 ? color.silver : short_tf7 ? color.yellow : color.gray)
+    table.cell(info, 0, 8, "TF8", text_color=enable_tf8 ? color.white : color.gray)
+    table.cell(info, 1, 8, long_tf8 ? "لانگ" : short_tf8 ? "شورت" : "خنثی", text_color=long_tf8 ? color.gray : short_tf8 ? color.white : color.gray)
+    table.cell(info, 0, 9, "TF9", text_color=enable_tf9 ? color.white : color.gray)
+    table.cell(info, 1, 9, long_tf9 ? "لانگ" : short_tf9 ? "شورت" : "خنثی", text_color=long_tf9 ? color.black : short_tf9 ? color.red : color.gray)
+    table.cell(info, 0, 10, "TF10", text_color=enable_tf10 ? color.white : color.gray)
+    table.cell(info, 1, 10, long_tf10 ? "لانگ" : short_tf10 ? "شورت" : "خنثی", text_color=long_tf10 ? color.maroon : short_tf10 ? color.aqua : color.gray)
