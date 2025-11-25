@@ -25,6 +25,15 @@ groupViz        = "Visuals & Alerts"
 highlightMode   = input.string("Both", "Background highlight", options = ["Both", "Long only", "Short only", "Off"], group = groupViz)
 showBiasMarkers = input.bool(true, "Show raw shadow bias markers", group = groupViz)
 
+groupPrecision       = "Precision Filters"
+useTrendFilter       = input.bool(true, "Enable higher-timeframe trend filter", group = groupPrecision)
+trendTf              = input.timeframe("60", "Trend timeframe", group = groupPrecision)
+trendLength          = input.int(50, "Trend EMA length", minval = 1, group = groupPrecision)
+trendSource          = input.source(close, "Trend source", group = groupPrecision)
+atrZoneMult          = input.float(0.75, "ATR proximity multiplier", step = 0.05, minval = 0, group = groupPrecision)
+requireRejection     = input.bool(true, "Require rejection candle", group = groupPrecision)
+rejectionRatio       = input.float(1.2, "Shadow/Body ratio for rejection", step = 0.1, minval = 0, group = groupPrecision)
+
 // ──────────────────────── Helpers ────────────────────────
 f_smooth(_src) =>
     if wickMethod == "SMA"
@@ -34,7 +43,7 @@ f_smooth(_src) =>
     else
         ta.ema(_src, wickLookback)
 
-f_isNear(float[] lvlArr, float tolerance) =>
+f_isNear(float[] lvlArr, float pctTolerance, float absTolerance) =>
     int size = array.size(lvlArr)
     if size == 0
         false
@@ -42,7 +51,9 @@ f_isNear(float[] lvlArr, float tolerance) =>
         bool near = false
         for i = 0 to size - 1
             float price = array.get(lvlArr, i)
-            near := near or math.abs(close - price) / close <= tolerance
+            bool withinPct = math.abs(close - price) / close <= pctTolerance
+            bool withinAbs = absTolerance > 0 ? math.abs(close - price) <= absTolerance : false
+            near := near or withinPct or withinAbs
         near
 
 f_nearest(float[] lvlArr) =>
@@ -112,9 +123,15 @@ float dominance   = wickSpread != 0 ? (avgUpper - avgLower) / wickSpread : 0
 float atr = ta.atr(bodyLookback)
 float body = math.abs(close - open)
 bool bodyPass = atr == 0 ? true : body >= atr * minBodyAtr
+float atrTolerance = atr * atrZoneMult
+float trendSeries = request.security(syminfo.tickerid, trendTf, ta.ema(trendSource, trendLength), gaps = barmerge.gaps_off, lookahead = barmerge.lookahead_off)
+bool longTrendPass = not useTrendFilter or close >= trendSeries
+bool shortTrendPass = not useTrendFilter or close <= trendSeries
 
 bool shortBiasRaw = avgUpper > avgLower * (1 + wickDominance) and bodyPass
 bool longBiasRaw  = avgLower > avgUpper * (1 + wickDominance) and bodyPass
+bool longRejection  = not requireRejection or (close > open and body > 0 and lowerShadow >= body * rejectionRatio)
+bool shortRejection = not requireRejection or (close < open and body > 0 and upperShadow >= body * rejectionRatio)
 
 // ──────────────────────── Support & resistance tracking ────────────────────────
 var float[] resistanceLevels = array.new_float()
@@ -149,8 +166,8 @@ if supHasData
 
 float nearestResistance = f_nearest(resistanceLevels)
 float nearestSupport    = f_nearest(supportLevels)
-bool nearResistance     = f_isNear(resistanceLevels, srProximityPct)
-bool nearSupport        = f_isNear(supportLevels, srProximityPct)
+bool nearResistance     = f_isNear(resistanceLevels, srProximityPct, atrTolerance)
+bool nearSupport        = f_isNear(supportLevels, srProximityPct, atrTolerance)
 
 if srShowLatestLabels
     if not na(latestResistanceLb)
@@ -169,8 +186,9 @@ if srShadeZones
     int leftCoord = math.max(bar_index - srLineHistory, 0)
     int rightCoord = bar_index
     if not na(latestResistance)
-        float resTop = latestResistance * (1 + srProximityPct)
-        float resBottom = latestResistance * (1 - srProximityPct)
+        float resBandPct = latestResistance != 0 ? math.max(srProximityPct, atrTolerance / latestResistance) : srProximityPct
+        float resTop = latestResistance * (1 + resBandPct)
+        float resBottom = latestResistance * (1 - resBandPct)
         if na(resistanceZone)
             resistanceZone := box.new(leftCoord, resTop, rightCoord, resBottom, bgcolor = color.new(color.red, 90), border_color = color.new(color.red, 80), border_style = line.style_dotted)
         else
@@ -184,8 +202,9 @@ if srShadeZones
         box.delete(resistanceZone)
         resistanceZone := na
     if not na(latestSupport)
-        float supTop = latestSupport * (1 + srProximityPct)
-        float supBottom = latestSupport * (1 - srProximityPct)
+        float supBandPct = latestSupport != 0 ? math.max(srProximityPct, atrTolerance / latestSupport) : srProximityPct
+        float supTop = latestSupport * (1 + supBandPct)
+        float supBottom = latestSupport * (1 - supBandPct)
         if na(supportZone)
             supportZone := box.new(leftCoord, supTop, rightCoord, supBottom, bgcolor = color.new(color.lime, 92), border_color = color.new(color.lime, 80), border_style = line.style_dotted)
         else
@@ -207,8 +226,8 @@ else
         supportZone := na
 
 // ──────────────────────── Signals ────────────────────────
-bool longSignal  = longBiasRaw and nearSupport and not shortBiasRaw
-bool shortSignal = shortBiasRaw and nearResistance and not longBiasRaw
+bool longSignal  = longBiasRaw and nearSupport and longRejection and longTrendPass and not shortBiasRaw
+bool shortSignal = shortBiasRaw and nearResistance and shortRejection and shortTrendPass and not longBiasRaw
 
 // Highlight background
 color longBg  = color.new(color.lime, 85)
@@ -229,6 +248,7 @@ plotshape(shortSignal, "Short Entry", style = shape.triangledown, location = loc
 plot(dominance, "Shadow dominance (upper-lower)", display = display.data_window, color = color.new(color.gray, 0))
 plot(nearestSupport, "Nearest support", display = display.data_window, color = color.new(color.lime, 0))
 plot(nearestResistance, "Nearest resistance", display = display.data_window, color = color.new(color.red, 0))
+plot(trendSeries, "Trend EMA (HTF)", display = display.data_window, color = color.new(color.blue, 0))
 
 alertcondition(longSignal, "Shadow Long w/ Support", "Long signal: lower shadows dominant + price near support")
 alertcondition(shortSignal, "Shadow Short w/ Resistance", "Short signal: upper shadows dominant + price near resistance")
