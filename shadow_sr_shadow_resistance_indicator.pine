@@ -72,14 +72,7 @@ f_refresh(float[] lvlArr, int[] barArr, line[] lineArr, color lineColor) =>
         line.set_color(ln, lineColor)
         line.set_extend(ln, extend.right)
 
-f_addLevel(
-    float levelPrice,
-    int pivotBarIndex,
-    float[] lvlArr,
-    line[] lineArr,
-    int[] barArr,
-    color lineColor
-) =>
+f_addLevel(float levelPrice, int pivotBarIndex, float[] lvlArr, line[] lineArr, int[] barArr, color lineColor) =>
     bool tooClose = false
     for i = 0 to array.size(lvlArr) - 1
         float existing = array.get(lvlArr, i)
