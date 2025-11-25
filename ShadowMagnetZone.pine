@@ -208,38 +208,37 @@ f_manage_flip_zones(_enabled, _src_c, _demand_boxes, _supply_boxes, _flip_boxes,
     if not _enabled
         while array.size(_flip_boxes) > 0
             box.delete(array.pop(_flip_boxes))
-        return
-    idx = array.size(_flip_boxes) - 1
-    while idx >= 0
-        b = array.get(_flip_boxes, idx)
-        if bar_index - box.get_left(b) > _max_zone_age
-            box.delete(b)
-            array.remove(_flip_boxes, idx)
-        idx -= 1
-    if na(_src_c) or na(_src_c[1])
-        return
-    idx = array.size(_demand_boxes) - 1
-    while idx >= 0
-        b = array.get(_demand_boxes, idx)
-        zone_top = box.get_top(b)
-        zone_bot = box.get_bottom(b)
-        if _src_c < zone_bot and _src_c[1] >= zone_bot
-            array.remove(_demand_boxes, idx)
-            box.delete(b)
-            new_box = box.new(left=bar_index, top=zone_top, right=bar_index + _extend, bottom=zone_bot, bgcolor=_flip_supply_color, border_color=color.new(_flip_supply_color, 0), text="Flip S\n"+_tf_label)
-            array.push(_flip_boxes, new_box)
-        idx -= 1
-    idx = array.size(_supply_boxes) - 1
-    while idx >= 0
-        b = array.get(_supply_boxes, idx)
-        zone_top = box.get_top(b)
-        zone_bot = box.get_bottom(b)
-        if _src_c > zone_top and _src_c[1] <= zone_top
-            array.remove(_supply_boxes, idx)
-            box.delete(b)
-            new_box = box.new(left=bar_index, top=zone_top, right=bar_index + _extend, bottom=zone_bot, bgcolor=_flip_demand_color, border_color=color.new(_flip_demand_color, 0), text="Flip D\n"+_tf_label)
-            array.push(_flip_boxes, new_box)
-        idx -= 1
+    else
+        flip_idx = array.size(_flip_boxes) - 1
+        while flip_idx >= 0
+            b = array.get(_flip_boxes, flip_idx)
+            if bar_index - box.get_left(b) > _max_zone_age
+                box.delete(b)
+                array.remove(_flip_boxes, flip_idx)
+            flip_idx -= 1
+        if not (na(_src_c) or na(_src_c[1]))
+            demand_idx = array.size(_demand_boxes) - 1
+            while demand_idx >= 0
+                b = array.get(_demand_boxes, demand_idx)
+                zone_top = box.get_top(b)
+                zone_bot = box.get_bottom(b)
+                if _src_c < zone_bot and _src_c[1] >= zone_bot
+                    array.remove(_demand_boxes, demand_idx)
+                    box.delete(b)
+                    new_box = box.new(left=bar_index, top=zone_top, right=bar_index + _extend, bottom=zone_bot, bgcolor=_flip_supply_color, border_color=color.new(_flip_supply_color, 0), text="Flip S\n"+_tf_label)
+                    array.push(_flip_boxes, new_box)
+                demand_idx -= 1
+            supply_idx = array.size(_supply_boxes) - 1
+            while supply_idx >= 0
+                b = array.get(_supply_boxes, supply_idx)
+                zone_top = box.get_top(b)
+                zone_bot = box.get_bottom(b)
+                if _src_c > zone_top and _src_c[1] <= zone_top
+                    array.remove(_supply_boxes, supply_idx)
+                    box.delete(b)
+                    new_box = box.new(left=bar_index, top=zone_top, right=bar_index + _extend, bottom=zone_bot, bgcolor=_flip_demand_color, border_color=color.new(_flip_demand_color, 0), text="Flip D\n"+_tf_label)
+                    array.push(_flip_boxes, new_box)
+                supply_idx -= 1
 
 // ———————————————————————— آرایه‌های نواحی ————————————————————————
 var box[] demand_zones_tf1 = array.new_box()
