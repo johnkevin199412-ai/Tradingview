@@ -201,9 +201,8 @@ bool paintShortBg = shortSignal and (highlightMode == "Both" or highlightMode ==
 bgcolor(paintLongBg ? longBg : paintShortBg ? shortBg : na)
 
 // Base bias markers
-if showBiasMarkers
-    plotshape(longBiasRaw, "Shadow Long Bias", style = shape.circle, location = location.belowbar, size = size.tiny, color = color.new(color.lime, 30), text = "LB")
-    plotshape(shortBiasRaw, "Shadow Short Bias", style = shape.circle, location = location.abovebar, size = size.tiny, color = color.new(color.red, 30), text = "SB")
+plotshape(showBiasMarkers and longBiasRaw, "Shadow Long Bias", style = shape.circle, location = location.belowbar, size = size.tiny, color = color.new(color.lime, 30), text = "LB")
+plotshape(showBiasMarkers and shortBiasRaw, "Shadow Short Bias", style = shape.circle, location = location.abovebar, size = size.tiny, color = color.new(color.red, 30), text = "SB")
 
 // Confirmed signals
 plotshape(longSignal, "Long Entry", style = shape.triangleup, location = location.belowbar, color = color.lime, size = size.large, text = "LONG", textcolor = color.white, offset = 0)
